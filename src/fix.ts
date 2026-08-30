@@ -22,7 +22,7 @@ export interface QuarantineEntry {
 }
 
 function manifestPath(home: string): string {
-  return path.join(home, ".skill-doctor", "quarantine", "manifest.json");
+  return path.join(home, ".skill-slim", "quarantine", "manifest.json");
 }
 
 /**
@@ -80,7 +80,7 @@ export async function applyFix(
   moves: Move[],
   home: string,
 ): Promise<{ moved: Move[]; failed: { move: Move; error: string }[] }> {
-  const quarantineRoot = path.join(home, ".skill-doctor", "quarantine");
+  const quarantineRoot = path.join(home, ".skill-slim", "quarantine");
   await fsp.mkdir(quarantineRoot, { recursive: true });
   const manifest = await readManifest(home);
 

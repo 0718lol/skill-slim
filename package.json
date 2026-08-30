@@ -1,14 +1,14 @@
 {
-  "name": "skill-doctor",
+  "name": "skill-slim",
   "version": "0.1.0",
   "description": "Health check & slim-down for your AI coding agent's skills, plugins and context files. Works with Claude Code, Codex, Gemini CLI and Cursor.",
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=22.6"
+    "node": ">=22.18"
   },
   "bin": {
-    "skill-doctor": "src/cli.ts"
+    "skill-slim": "src/cli.ts"
   },
   "scripts": {
     "start": "node src/cli.ts",
@@ -24,5 +24,10 @@
     "tokens",
     "linter",
     "cli"
+  ],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
   ]
 }

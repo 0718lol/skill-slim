@@ -78,7 +78,7 @@ test("applyFix moves directories into quarantine and leaves used skills alone", 
   const { moved, failed } = await applyFix(moves, fakeHome);
   assert.equal(failed.length, 0);
   assert.equal(moved.length, 1);
-  assert.ok(fs.existsSync(path.join(fakeHome, ".skill-doctor", "quarantine", "claude-code", "stale")));
+  assert.ok(fs.existsSync(path.join(fakeHome, ".skill-slim", "quarantine", "claude-code", "stale")));
   assert.ok(!fs.existsSync(path.join(tmp, "skills", "stale")));
   assert.ok(fs.existsSync(path.join(tmp, "skills", "used")));
   fs.rmSync(tmp, { recursive: true, force: true });

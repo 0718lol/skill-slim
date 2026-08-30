@@ -1,15 +1,15 @@
-# skill-doctor
+# skill-slim
 
 > Health check & slim-down for your AI coding agent's skills, plugins and context files.
 > Works with **Claude Code · Codex CLI · Gemini CLI · Cursor**.
 
 Every skill description and rules file you install rides along in **every** conversation.
 Most setups carry dead weight: duplicated skills, prompts that never fire, oversized rule
-files. skill-doctor audits what your agent actually loads, prices it in tokens and dollars,
+files. skill-slim audits what your agent actually loads, prices it in tokens and dollars,
 and safely quarantines the dead weight.
 
 ```
-  skill-doctor — agent context health check
+  skill-slim — agent context health check
   scanned: 4/4 agents installed · usage window 30d
 
   ● Codex CLI  [codex]
@@ -35,7 +35,7 @@ and safely quarantines the dead weight.
   limit), oversized bodies that break progressive disclosure, name/folder mismatches
 - 🏥 **Health score** — 0–100 per agent, plus a shareable HTML report (`--html`)
 - 🔒 **Reversible `fix` / `restore`** — quarantines never-invoked skills you own to
-  `~/.skill-doctor/quarantine/` with a manifest; dry-run shows the **upside first**
+  `~/.skill-slim/quarantine/` with a manifest; dry-run shows the **upside first**
   (~N fewer always-on tokens ≈ $X/month), `--apply` re-scores and prints the
   before/after health delta; `restore <name>` moves them back. Plugin-bundled skills
   are never touched — uninstall the plugin instead
@@ -47,7 +47,7 @@ and safely quarantines the dead weight.
 ## Usage
 
 ```bash
-git clone https://github.com/<you>/skill-doctor && cd skill-doctor
+git clone https://github.com/<you>/skill-slim && cd skill-slim
 
 node src/cli.ts                        # health check across all detected agents
 node src/cli.ts agents                 # which agents were found on this machine
@@ -67,7 +67,7 @@ CI gate — fail the build when your skills repo gets bloated:
 - run: node src/cli.ts --min-score 85
 ```
 
-npm package (`npx skill-doctor`) ships once the CLI is battle-tested — see roadmap.
+npm package (`npx skill-slim`) ships once the CLI is battle-tested — see roadmap.
 
 ## What gets scanned
 
@@ -78,7 +78,7 @@ npm package (`npx skill-doctor`) ships once the CLI is battle-tested — see roa
 | Gemini CLI | `~/.gemini/config/skills`, `~/.gemini/skills` | global & project `GEMINI.md`, extensions | ✅ Antigravity conversation DBs, evidence-gated |
 | Cursor | non-always-apply `.cursor/rules/*.mdc` | always-apply rules | conversations only (`ai-tracking`); rule usage isn't logged |
 
-Everything stays on your machine: skill-doctor reads local files only and makes no
+Everything stays on your machine: skill-slim reads local files only and makes no
 network requests.
 
 ## Accuracy notes
@@ -111,7 +111,7 @@ network requests.
 - [ ] Embedding-based duplicate detection (optional local model)
 - [ ] MCP server tool-definition pricing
 - [ ] GitHub Action that posts a health report on your skills repo
-- [ ] `npm i -g skill-doctor` / `npx skill-doctor` distribution
+- [ ] `npm i -g skill-slim` / `npx skill-slim` distribution
 
 ## Contributing
 
@@ -120,12 +120,12 @@ implementing `detect()` + `scan()`. Run tests with `npm test` (24 tests, no deps
 
 ## 中文说明
 
-skill-doctor 给 AI 编码 Agent 的技能包做“体检”：统计常驻上下文的 token 成本、找出重复
+skill-slim 给 AI 编码 Agent 的技能包做“体检”：统计常驻上下文的 token 成本、找出重复
 与从未使用的技能、检查规范问题，并可一键隔离（可恢复）瘦身。支持 Claude Code / Codex /
 Gemini CLI / Cursor 四家，纯本地运行，零依赖。用量解析覆盖 Claude Code（会话 JSONL）、
 Codex（exec 调用代理）、Gemini CLI（Antigravity 会话库，证据门控）；Cursor 不记录规则
 调用，仅读取会话数支撑月度账单。常用命令见上方 Usage；`fix` 默认 dry-run，加 `--apply`
-才会实际移动目录到 `~/.skill-doctor/quarantine/`，`restore <name>` 随时恢复。
+才会实际移动目录到 `~/.skill-slim/quarantine/`，`restore <name>` 随时恢复。
 
 ## License
 

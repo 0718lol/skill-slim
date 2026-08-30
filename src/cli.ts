@@ -120,7 +120,7 @@ async function runRestore(opts: CliOptions): Promise<number> {
     console.log(`\n  ${manifest.length} quarantined skill(s):\n`);
     for (const entry of manifest) {
       console.log(`  ▲ [${entry.agent}] ${entry.name}  (${entry.movedAt})`);
-      console.log(`    restore with: skill-doctor restore ${entry.name}`);
+      console.log(`    restore with: skill-slim restore ${entry.name}`);
     }
     console.log("");
     return 0;
@@ -179,7 +179,7 @@ async function runFix(
 
   if (!opts.apply) {
     console.log(`\n  dry-run only. Re-run with --apply to move these directories to`);
-    console.log(`  ~/.skill-doctor/quarantine/ (nothing is deleted; 'skill-doctor restore' brings them back).\n`);
+    console.log(`  ~/.skill-slim/quarantine/ (nothing is deleted; 'skill-slim restore' brings them back).\n`);
     return 0;
   }
 
@@ -229,7 +229,7 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === "--json") {
       opts.json = true;
     } else if (arg === "--html") {
-      opts.html = argv[++i] ?? "skill-doctor-report.html";
+      opts.html = argv[++i] ?? "skill-slim-report.html";
     } else if (arg === "--apply") {
       opts.apply = true;
     } else if (arg === "--verbose") {
@@ -242,7 +242,7 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === "--help" || arg === "-h") {
       opts.help = true;
     } else if (arg === "--version") {
-      console.log(`skill-doctor v${VERSION}`);
+      console.log(`skill-slim v${VERSION}`);
       process.exit(0);
     } else if (arg.startsWith("--")) {
       throw new Error(`unknown flag "${arg}" (see --help)`);
@@ -263,9 +263,9 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printHelp(): void {
   console.log(`
-  skill-doctor v${VERSION} — health check for your AI coding agent's skills & context
+  skill-slim v${VERSION} — health check for your AI coding agent's skills & context
 
-  usage: skill-doctor [command] [options]
+  usage: skill-slim [command] [options]
 
   commands:
     check     scan installed agents and print a health report (default)
@@ -284,11 +284,11 @@ function printHelp(): void {
     --help, -h      show this help
 
   examples:
-    skill-doctor
-    skill-doctor check --agent claude-code --days 14
-    skill-doctor fix --apply
-    skill-doctor restore verify-engineering-work
-    skill-doctor --min-score 80 && npm test   # in CI
+    skill-slim
+    skill-slim check --agent claude-code --days 14
+    skill-slim fix --apply
+    skill-slim restore verify-engineering-work
+    skill-slim --min-score 80 && npm test   # in CI
 `);
 }
 

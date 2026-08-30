@@ -13,7 +13,7 @@ export function renderTerminal(report: Report, opts?: { verbose?: boolean }): st
   const verbose = opts?.verbose ?? false;
   const out: string[] = [];
   out.push("");
-  out.push(`  skill-doctor — agent context health check`);
+  out.push(`  skill-slim — agent context health check`);
   out.push(`  scanned: ${report.agents.filter((a) => a.detected).length}/${report.agents.length} agents installed · usage window ${report.windowDays}d`);
   out.push("");
 
@@ -84,7 +84,7 @@ export function renderTerminal(report: Report, opts?: { verbose?: boolean }): st
       `recoverable: ~${report.totalRecoverableTokens.toLocaleString()} tokens` +
       (report.totalMonthlyCost > 0 ? ` · ≈ ${fmtUsd(report.totalMonthlyCost)}/month wasted` : ``),
   );
-  out.push(`  fix suggestions: run \`skill-doctor fix\` (dry-run by default) · \`skill-doctor restore\` to un-quarantine`);
+  out.push(`  fix suggestions: run \`skill-slim fix\` (dry-run by default) · \`skill-slim restore\` to un-quarantine`);
   out.push("");
   return out.join("\n");
 
@@ -114,7 +114,7 @@ export function renderHtml(report: Report): string {
     .join("\n");
 
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>skill-doctor report</title>
+<html><head><meta charset="utf-8"><title>skill-slim report</title>
 <style>
   body{font-family:-apple-system,Segoe UI,sans-serif;background:#0d1117;color:#e6edf3;max-width:860px;margin:0 auto;padding:40px 24px}
   h1{font-size:26px}
@@ -128,7 +128,7 @@ export function renderHtml(report: Report): string {
   li.error{color:#f85149}li.warn{color:#d29922}li.info{color:#8b949e}
   .meta{color:#8b949e;font-size:13px}
 </style></head><body>
-<h1>skill-doctor report</h1>
+<h1>skill-slim report</h1>
 <p class="meta">generated ${esc(report.generatedAt)} · overall score ${report.score} (${grade(report.score)}) · recoverable ~${report.totalRecoverableTokens.toLocaleString()} tokens</p>
 ${cards}
 <p class="meta">Estimates only: token counts are heuristic and pricing assumes $${3}/M input tokens.</p>
