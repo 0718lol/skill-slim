@@ -1,0 +1,28 @@
+{
+  "name": "skill-doctor",
+  "version": "0.1.0",
+  "description": "Health check & slim-down for your AI coding agent's skills, plugins and context files. Works with Claude Code, Codex, Gemini CLI and Cursor.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "bin": {
+    "skill-doctor": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "node src/cli.ts",
+    "test": "node --test \"tests/*.test.ts\""
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "gemini-cli",
+    "cursor",
+    "agent-skills",
+    "context-window",
+    "tokens",
+    "linter",
+    "cli"
+  ]
+}

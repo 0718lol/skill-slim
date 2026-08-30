@@ -1,0 +1,6 @@
+{"timestamp":"2026-08-30T10:00:00.000Z","type":"session_meta","payload":{"id":"s1","cwd":"/tmp"}}
+{"timestamp":"2026-08-30T10:00:01.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":{"cmd":"cat /Users/wanganchang/.codex/skills/alpha/SKILL.md"}}}
+{"timestamp":"2026-08-30T10:00:02.000Z","type":"response_item","payload":{"type":"custom_tool_call_output","name":"exec","output":"tool output mentions skills/ghost/SKILL.md but must not count"}}
+{"timestamp":"2026-08-30T10:00:03.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":{"cmd":"cat ~/.codex/plugins/cache/openai-bundled/browser/skills/browser-skill/SKILL.md"}}}
+{"timestamp":"2026-08-30T10:00:04.000Z","type":"event_msg","payload":{"type":"user_message","message":"/deploy now please"}}
+{"timestamp":"2026-08-30T10:00:05.000Z","type":"event_msg","payload":{"type":"user_message","message":"please read skills/ghost/SKILL.md manually"}}

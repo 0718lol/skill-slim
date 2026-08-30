@@ -1,0 +1,3 @@
+{"type":"user","message":{"role":"user","content":"hi"}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"command":"alpha"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_result","content":"done"}]}}

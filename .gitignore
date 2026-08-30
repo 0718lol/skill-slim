@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.log
+skill-doctor-report.html
+.DS_Store
