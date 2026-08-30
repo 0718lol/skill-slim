@@ -9,7 +9,8 @@ const SEVERITY_ICON: Record<Finding["severity"], string> = {
   info: "·",
 };
 
-export function renderTerminal(report: Report): string {
+export function renderTerminal(report: Report, opts?: { verbose?: boolean }): string {
+  const verbose = opts?.verbose ?? false;
   const out: string[] = [];
   out.push("");
   out.push(`  skill-doctor — agent context health check`);
@@ -39,7 +40,24 @@ export function renderTerminal(report: Report): string {
     if (agent.findings.length === 0) {
       out.push(`    ✓ no issues found`);
     }
+
+    // Keep the report scannable: warn/error findings always show; plugin-
+    // bundled informational noise collapses into a summary line.
+    const actionable: Finding[] = [];
+    const infoDupes: Finding[] = [];
+    const infoOthers: Finding[] = [];
     for (const f of agent.findings) {
+      if (f.severity !== "info") actionable.push(f);
+      else if (f.kind === "duplicate") infoDupes.push(f);
+      else infoOthers.push(f);
+    }
+    infoDupes.sort((a, b) => (b.recoverableTokens ?? 0) - (a.recoverableTokens ?? 0));
+    const shown = verbose
+      ? [...actionable, ...infoDupes, ...infoOthers]
+      : [...actionable, ...infoDupes.slice(0, 3)];
+    const hiddenCount = verbose ? 0 : infoOthers.length + (infoDupes.length - Math.min(3, infoDupes.length));
+
+    for (const f of shown) {
       out.push(`    ${SEVERITY_ICON[f.severity]} ${f.title}`);
       out.push(`      ${f.detail}`);
       if (f.recoverableTokens && f.recoverableTokens > 0) {
@@ -48,6 +66,12 @@ export function renderTerminal(report: Report): string {
       for (const p of f.paths.slice(0, 2)) {
         out.push(`      ${dim(p)}`);
       }
+    }
+    if (hiddenCount > 0 && !verbose) {
+      out.push(`    · ${hiddenCount} informational finding(s) hidden (--verbose to show)`);
+    }
+    if (agent.findings.length > 0 && agent.findings.every((f) => f.severity === "info") && hiddenCount === 0) {
+      out.push(`    ✓ nothing actionable — informational notes above`);
     }
     out.push(`    health score: ${agent.score}/100 (${grade(agent.score)})`);
     out.push("");

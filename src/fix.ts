@@ -2,12 +2,15 @@ import { promises as fsp } from "node:fs";
 import * as path from "node:path";
 import type { AgentScan } from "./types.ts";
 import { exists, quarantineMove } from "./util/fsx.ts";
+import { estimateTokens, PRICE_PER_MTOK } from "./util/tokens.ts";
 
 export interface Move {
   agent: string;
   from: string;
   to: string;
   reason: string;
+  /** Always-on description tokens recovered if this skill is quarantined. */
+  recoverableTokens: number;
 }
 
 export interface QuarantineEntry {
@@ -41,10 +44,36 @@ export function planFix(scans: AgentScan[]): Move[] {
         from: skill.path,
         to: path.join(scan.id, path.basename(skill.path)),
         reason: `never invoked in scan window (${skill.source})`,
+        recoverableTokens: estimateTokens(skill.description),
       });
     }
   }
   return moves;
+}
+
+export function totalSavings(moves: Move[]): number {
+  return moves.reduce((sum, m) => sum + m.recoverableTokens, 0);
+}
+
+/**
+ * Monthly USD savings of applying the plan, extrapolated from each agent's
+ * observed conversation count inside the scan window.
+ */
+export function estimateMonthlySavings(
+  moves: Move[],
+  conversationsByAgent: Map<string, number>,
+  windowDays: number,
+): number {
+  const tokensByAgent = new Map<string, number>();
+  for (const move of moves) {
+    tokensByAgent.set(move.agent, (tokensByAgent.get(move.agent) ?? 0) + move.recoverableTokens);
+  }
+  let monthly = 0;
+  for (const [agent, tokens] of tokensByAgent) {
+    const conversations = conversationsByAgent.get(agent) ?? 0;
+    monthly += (tokens / 1_000_000) * PRICE_PER_MTOK * conversations * (30 / windowDays);
+  }
+  return monthly;
 }
 
 export async function applyFix(

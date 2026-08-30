@@ -2,9 +2,10 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import { ADAPTERS, resolveAdapters, scanAgent } from "./adapters/index.ts";
-import { runChecks } from "./core/checks.ts";
+import { grade, runChecks } from "./core/checks.ts";
 import { renderHtml, renderTerminal, toJson, writeReportFile } from "./core/report.ts";
-import { applyFix, planFix, readManifest, restore } from "./fix.ts";
+import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
+import { fmtUsd } from "./util/tokens.ts";
 import type { Report } from "./types.ts";
 
 const VERSION = "0.1.0";
@@ -17,6 +18,7 @@ interface CliOptions {
   json: boolean;
   html?: string;
   apply: boolean;
+  verbose: boolean;
   minScore?: number;
   help: boolean;
 }
@@ -59,7 +61,7 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   if (opts.command === "fix") {
-    return runFix(scans, opts);
+    return runFix(scans, adapters, opts);
   }
 
   const reports = scans.map((s) => runChecks(s, opts.days));
@@ -68,7 +70,7 @@ export async function main(argv: string[]): Promise<number> {
   if (opts.json) {
     console.log(toJson(report));
   } else {
-    console.log(renderTerminal(report));
+    console.log(renderTerminal(report, { verbose: opts.verbose }));
   }
   if (opts.html) {
     writeReportFile(opts.html, renderHtml(report));
@@ -149,22 +151,38 @@ async function runAgentsList(): Promise<number> {
   return 0;
 }
 
-async function runFix(scans: Awaited<ReturnType<typeof scanAgent>>[], opts: CliOptions): Promise<number> {
+async function runFix(
+  scans: Awaited<ReturnType<typeof scanAgent>>[],
+  adapters: Awaited<ReturnType<typeof resolveAdapters>>,
+  opts: CliOptions,
+): Promise<number> {
+  const before = scans.map((s) => runChecks(s, opts.days));
   const moves = planFix(scans);
   if (moves.length === 0) {
     console.log("\n  nothing to fix — no safely-quarantineable unused skills found.\n");
     return 0;
   }
+
+  const conversations = new Map(scans.map((s) => [s.id, s.conversationCount]));
+  const savingsTokens = totalSavings(moves);
+  const monthly = estimateMonthlySavings(moves, conversations, opts.days);
+
   console.log(`\n  fix plan — ${moves.length} skill(s) to quarantine:\n`);
   for (const move of moves) {
     console.log(`  ▲ [${move.agent}] ${move.from}`);
     console.log(`    → ${move.to}  (${move.reason})`);
   }
+  console.log(
+    `\n  upside: ~${savingsTokens.toLocaleString()} fewer always-on tokens per conversation` +
+      (monthly > 0 ? ` ≈ ${fmtUsd(monthly)}/month at your pace` : ``),
+  );
+
   if (!opts.apply) {
     console.log(`\n  dry-run only. Re-run with --apply to move these directories to`);
-    console.log(`  ~/.skill-doctor/quarantine/ (nothing is deleted; move them back to restore).\n`);
+    console.log(`  ~/.skill-doctor/quarantine/ (nothing is deleted; 'skill-doctor restore' brings them back).\n`);
     return 0;
   }
+
   const { moved, failed } = await applyFix(moves, os.homedir());
   for (const m of moved) {
     console.log(`  ✓ moved ${m.from} → ${m.to}`);
@@ -172,12 +190,34 @@ async function runFix(scans: Awaited<ReturnType<typeof scanAgent>>[], opts: CliO
   for (const f of failed) {
     console.error(`  ✖ failed ${f.move.from}: ${f.error}`);
   }
+
+  if (moved.length > 0) {
+    // re-scan so the user sees the payoff, not just the action
+    const ctx = { home: os.homedir(), cwd: process.cwd(), windowDays: opts.days };
+    const afterScans = [];
+    for (const adapter of adapters) {
+      afterScans.push(await scanAgent(adapter, ctx));
+    }
+    const beforeAggregate = aggregateReport(before, opts.days);
+    const after = aggregateReport(afterScans.map((s) => runChecks(s, opts.days)), opts.days);
+    console.log(
+      `\n  health score: ${beforeAggregate.score}/100 (${grade(beforeAggregate.score)}) → ` +
+        `${after.score}/100 (${grade(after.score)})`,
+    );
+    for (const m of moved) {
+      const b = before.find((r) => r.id === m.agent);
+      const a = after.agents.find((r) => r.id === m.agent);
+      if (b && a && b.score !== a.score) {
+        console.log(`  · [${m.agent}] ${b.score} → ${a.score}`);
+      }
+    }
+  }
   console.log(`\n  ${moved.length} quarantined, ${failed.length} failed. Restart your agent session to take effect.\n`);
   return failed.length > 0 ? 1 : 0;
 }
 
 function parseArgs(argv: string[]): CliOptions {
-  const opts: CliOptions = { command: "check", days: 30, json: false, apply: false, help: false };
+  const opts: CliOptions = { command: "check", days: 30, json: false, apply: false, verbose: false, help: false };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -192,6 +232,8 @@ function parseArgs(argv: string[]): CliOptions {
       opts.html = argv[++i] ?? "skill-doctor-report.html";
     } else if (arg === "--apply") {
       opts.apply = true;
+    } else if (arg === "--verbose") {
+      opts.verbose = true;
     } else if (arg === "--min-score") {
       opts.minScore = Number(argv[++i]);
       if (!Number.isFinite(opts.minScore) || opts.minScore < 0 || opts.minScore > 100) {
@@ -237,6 +279,7 @@ function printHelp(): void {
     --json          machine-readable JSON output
     --html <file>   also write a shareable HTML report
     --apply         with fix: actually move directories
+    --verbose       show informational findings hidden by default
     --min-score <n> exit with code 1 when the overall score is below n (CI)
     --help, -h      show this help
 

@@ -35,9 +35,12 @@ and safely quarantines the dead weight.
   limit), oversized bodies that break progressive disclosure, name/folder mismatches
 - 🏥 **Health score** — 0–100 per agent, plus a shareable HTML report (`--html`)
 - 🔒 **Reversible `fix` / `restore`** — quarantines never-invoked skills you own to
-  `~/.skill-doctor/quarantine/` with a manifest; dry-run by default, nothing is ever
-  deleted, `restore <name>` moves them back. Plugin-bundled skills are never touched —
-  uninstall the plugin instead
+  `~/.skill-doctor/quarantine/` with a manifest; dry-run shows the **upside first**
+  (~N fewer always-on tokens ≈ $X/month), `--apply` re-scores and prints the
+  before/after health delta; `restore <name>` moves them back. Plugin-bundled skills
+  are never touched — uninstall the plugin instead
+- 🧾 **Scannable reports** — actionable findings always surface; plugin-bundle noise
+  collapses into a summary line (`--verbose` to expand)
 - 🤖 **CI-ready** — `--min-score <n>` exits 1 when the health score drops below the gate
 - 📦 **Zero runtime dependencies** — plain Node ≥ 22.6, no install step
 
@@ -48,13 +51,14 @@ git clone https://github.com/<you>/skill-doctor && cd skill-doctor
 
 node src/cli.ts                        # health check across all detected agents
 node src/cli.ts agents                 # which agents were found on this machine
-node src/cli.ts fix                    # dry-run: show what would be quarantined
-node src/cli.ts fix --apply            # quarantine never-invoked skills you own
+node src/cli.ts fix                    # dry-run: plan + upside (tokens & $ saved)
+node src/cli.ts fix --apply            # quarantine, then re-score: 76 → 91
 node src/cli.ts restore                # list quarantined skills
 node src/cli.ts restore <name>         # move one back to its original location
 node src/cli.ts --json                 # machine-readable output
 node src/cli.ts --html report.html     # shareable HTML report card
 node src/cli.ts --agent claude-code,codex --days 14
+node src/cli.ts --verbose              # expand collapsed informational findings
 ```
 
 CI gate — fail the build when your skills repo gets bloated:

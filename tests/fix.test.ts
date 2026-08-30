@@ -3,7 +3,7 @@ import { test } from "node:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { applyFix, planFix, readManifest, restore } from "../src/fix.ts";
+import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "../src/fix.ts";
 import type { AgentScan, Skill, UsageStat } from "../src/types.ts";
 
 function makeScan(tmpRoot: string, skills: { name: string; used: boolean }[]): AgentScan {
@@ -35,6 +35,24 @@ function makeScan(tmpRoot: string, skills: { name: string; used: boolean }[]): A
     notes: [],
   };
 }
+
+test("planFix carries recoverable tokens and savings math checks out", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "sd-savings-"));
+  fs.mkdirSync(path.join(tmp, "skills", "stale"), { recursive: true });
+  fs.writeFileSync(path.join(tmp, "skills", "stale", "SKILL.md"), "---\nname: stale\ndescription: x\n---\nbody\n");
+  const scan = makeScan(tmp, [{ name: "stale", used: false }]);
+  scan.skills[0].description = "a".repeat(3800); // ~1000 tokens heuristic
+  const moves = planFix([scan]);
+  assert.equal(moves.length, 1);
+  assert.ok(moves[0].recoverableTokens > 900, `expected ~1000, got ${moves[0].recoverableTokens}`);
+  assert.equal(totalSavings(moves), moves[0].recoverableTokens);
+
+  const monthly = estimateMonthlySavings(moves, new Map([["claude-code", 100]]), 30);
+  const expected = (moves[0].recoverableTokens / 1_000_000) * 3 * 100;
+  assert.ok(Math.abs(monthly - expected) < 1e-9);
+  assert.equal(estimateMonthlySavings(moves, new Map([["claude-code", 0]]), 30), 0);
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
 
 test("planFix only proposes never-invoked skills", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "sd-plan-"));
