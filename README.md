@@ -41,15 +41,19 @@ and safely quarantines the dead weight.
   are never touched — uninstall the plugin instead
 - 🧾 **Scannable reports** — actionable findings always surface; plugin-bundle noise
   collapses into a summary line (`--verbose` to expand)
+- 🖥️ **Local web dashboard** — `skill-slim serve` opens a wood-and-paper dashboard in
+  your browser: score rings, per-agent bills, one-click slim-down with a live
+  before/after score, and one-click restore from quarantine
 - 🤖 **CI-ready** — `--min-score <n>` exits 1 when the health score drops below the gate
 - 📦 **Zero runtime dependencies** — plain Node ≥ 22.6, no install step
 
 ## Usage
 
 ```bash
-git clone https://github.com/<you>/skill-slim && cd skill-slim
+git clone https://github.com/0718lol/skill-slim && cd skill-slim
 
 node src/cli.ts                        # health check across all detected agents
+node src/cli.ts serve                  # web dashboard, opens in your browser
 node src/cli.ts agents                 # which agents were found on this machine
 node src/cli.ts fix                    # dry-run: plan + upside (tokens & $ saved)
 node src/cli.ts fix --apply            # quarantine, then re-score: 76 → 91
@@ -60,6 +64,18 @@ node src/cli.ts --html report.html     # shareable HTML report card
 node src/cli.ts --agent claude-code,codex --days 14
 node src/cli.ts --verbose              # expand collapsed informational findings
 ```
+
+## Web dashboard
+
+`skill-slim serve` (or `--port 8080 --no-open` for a quieter start) starts a local
+dashboard on `http://127.0.0.1:7466` — bound to localhost only, no data leaves the
+machine, no framework and no build step (one static page + `node:http`). It can:
+
+- show the overall score ring and the always-on token bill for every agent
+- list findings with severity colors, plugin-bundle noise collapsed
+- compute the slim-down plan with its upside in tokens and dollars
+- apply the plan (double-confirmed) and show the score moving 76 → 91 live
+- list the quarantine and restore any skill with one click
 
 CI gate — fail the build when your skills repo gets bloated:
 
@@ -107,6 +123,7 @@ network requests.
 - [x] Usage parsing for Codex (exec-proxy + slash commands)
 - [x] Usage parsing for Gemini CLI (Antigravity DBs, evidence-gated)
 - [x] Conversation counts for Cursor's monthly bill
+- [x] Local web dashboard (`skill-slim serve`)
 - [ ] Per-rule usage for Cursor (not logged locally by Cursor)
 - [ ] Embedding-based duplicate detection (optional local model)
 - [ ] MCP server tool-definition pricing

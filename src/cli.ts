@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import * as os from "node:os";
 import * as path from "node:path";
-import { ADAPTERS, resolveAdapters, scanAgent } from "./adapters/index.ts";
+import { ADAPTERS } from "./adapters/index.ts";
 import { grade, runChecks } from "./core/checks.ts";
+import { collect, getHome } from "./core/collect.ts";
 import { renderHtml, renderTerminal, toJson, writeReportFile } from "./core/report.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
+import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
-import type { Report } from "./types.ts";
 
 const VERSION = "0.1.0";
 
@@ -20,6 +20,8 @@ interface CliOptions {
   apply: boolean;
   verbose: boolean;
   minScore?: number;
+  port?: number;
+  noOpen: boolean;
   help: boolean;
 }
 
@@ -42,31 +44,27 @@ export async function main(argv: string[]): Promise<number> {
     return runAgentsList();
   }
 
+  if (opts.command === "serve") {
+    return runServe(opts);
+  }
+
   if (opts.command === "restore") {
     return runRestore(opts);
   }
 
-  const ctx = { home: os.homedir(), cwd: process.cwd(), windowDays: opts.days };
-  let adapters;
+  let collected;
   try {
-    adapters = resolveAdapters(opts.agents);
+    collected = await collect(opts.days, opts.agents);
   } catch (err) {
     console.error(`error: ${(err as Error).message}`);
     return 2;
   }
 
-  const scans = [];
-  for (const adapter of adapters) {
-    scans.push(await scanAgent(adapter, ctx));
-  }
-
   if (opts.command === "fix") {
-    return runFix(scans, adapters, opts);
+    return runFix(opts, collected);
   }
 
-  const reports = scans.map((s) => runChecks(s, opts.days));
-  const report = aggregateReport(reports, opts.days);
-
+  const { report } = collected;
   if (opts.json) {
     console.log(toJson(report));
   } else {
@@ -85,32 +83,31 @@ export async function main(argv: string[]): Promise<number> {
   return 0;
 }
 
-function aggregateReport(reports: ReturnType<typeof runChecks>[], windowDays: number): Report {
-  const detected = reports.filter((r) => r.detected);
-  const totalAlwaysOnTokens = detected.reduce((s, r) => s + r.alwaysOnTokens, 0);
-  const totalBillPer1000 = detected.reduce((s, r) => s + r.billPer1000, 0);
-  const totalMonthlyCost = detected.reduce((s, r) => s + r.monthlyCost, 0);
-  const totalRecoverable = detected.reduce(
-    (s, r) => s + r.findings.reduce((fs2, f) => s + (f.recoverableTokens ?? 0), 0),
-    0,
-  );
-  const score = detected.length
-    ? Math.round(detected.reduce((s, r) => s + r.score, 0) / detected.length)
-    : 100;
-  return {
-    generatedAt: new Date().toISOString(),
-    windowDays,
-    agents: reports,
-    totalAlwaysOnTokens,
-    totalBillPer1000,
-    totalMonthlyCost,
-    totalRecoverableTokens: totalRecoverable,
-    score,
-  };
+async function runServe(opts: CliOptions): Promise<number> {
+  try {
+    const handle = await startServer({ port: opts.port, open: !opts.noOpen, windowDays: opts.days });
+    console.log(`  Ctrl+C 退出。`);
+    await handle.wait();
+    return 0;
+  } catch (err) {
+    console.error(`error: ${(err as Error).message}`);
+    return 1;
+  }
+}
+
+async function runAgentsList(): Promise<number> {
+  const home = getHome();
+  console.log("\n  supported agents:\n");
+  for (const adapter of ADAPTERS) {
+    const ok = await adapter.detect({ home });
+    console.log(`  ${ok ? "●" : "○"} ${adapter.name.padEnd(14)} [${adapter.id}] ${ok ? "detected" : "not found"} (${adapter.hint})`);
+  }
+  console.log("");
+  return 0;
 }
 
 async function runRestore(opts: CliOptions): Promise<number> {
-  const home = os.homedir();
+  const home = getHome();
   if (!opts.name) {
     const manifest = await readManifest(home);
     if (manifest.length === 0) {
@@ -140,22 +137,16 @@ async function runRestore(opts: CliOptions): Promise<number> {
   return 0;
 }
 
-async function runAgentsList(): Promise<number> {
-  const home = os.homedir();
-  console.log("\n  supported agents:\n");
-  for (const adapter of ADAPTERS) {
-    const ok = await adapter.detect({ home });
-    console.log(`  ${ok ? "●" : "○"} ${adapter.name.padEnd(14)} [${adapter.id}] ${ok ? "detected" : "not found"} (${adapter.hint})`);
-  }
-  console.log("");
-  return 0;
+function averageScore(reports: { detected: boolean; score: number }[]): number {
+  const detected = reports.filter((r) => r.detected);
+  return detected.length ? Math.round(detected.reduce((s, r) => s + r.score, 0) / detected.length) : 100;
 }
 
 async function runFix(
-  scans: Awaited<ReturnType<typeof scanAgent>>[],
-  adapters: Awaited<ReturnType<typeof resolveAdapters>>,
   opts: CliOptions,
+  collected: Awaited<ReturnType<typeof collect>>,
 ): Promise<number> {
+  const { scans } = collected;
   const before = scans.map((s) => runChecks(s, opts.days));
   const moves = planFix(scans);
   if (moves.length === 0) {
@@ -183,7 +174,7 @@ async function runFix(
     return 0;
   }
 
-  const { moved, failed } = await applyFix(moves, os.homedir());
+  const { moved, failed } = await applyFix(moves, getHome());
   for (const m of moved) {
     console.log(`  ✓ moved ${m.from} → ${m.to}`);
   }
@@ -193,20 +184,17 @@ async function runFix(
 
   if (moved.length > 0) {
     // re-scan so the user sees the payoff, not just the action
-    const ctx = { home: os.homedir(), cwd: process.cwd(), windowDays: opts.days };
-    const afterScans = [];
-    for (const adapter of adapters) {
-      afterScans.push(await scanAgent(adapter, ctx));
-    }
-    const beforeAggregate = aggregateReport(before, opts.days);
-    const after = aggregateReport(afterScans.map((s) => runChecks(s, opts.days)), opts.days);
+    const after = await collect(opts.days, opts.agents);
+    const afterReports = after.scans.map((s) => runChecks(s, opts.days));
+    const beforeScore = averageScore(before);
+    const afterScore = averageScore(afterReports);
     console.log(
-      `\n  health score: ${beforeAggregate.score}/100 (${grade(beforeAggregate.score)}) → ` +
-        `${after.score}/100 (${grade(after.score)})`,
+      `\n  health score: ${beforeScore}/100 (${grade(beforeScore)}) → ` +
+        `${afterScore}/100 (${grade(afterScore)})`,
     );
     for (const m of moved) {
       const b = before.find((r) => r.id === m.agent);
-      const a = after.agents.find((r) => r.id === m.agent);
+      const a = afterReports.find((r) => r.id === m.agent);
       if (b && a && b.score !== a.score) {
         console.log(`  · [${m.agent}] ${b.score} → ${a.score}`);
       }
@@ -217,7 +205,15 @@ async function runFix(
 }
 
 function parseArgs(argv: string[]): CliOptions {
-  const opts: CliOptions = { command: "check", days: 30, json: false, apply: false, verbose: false, help: false };
+  const opts: CliOptions = {
+    command: "check",
+    days: 30,
+    json: false,
+    apply: false,
+    verbose: false,
+    noOpen: false,
+    help: false,
+  };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -234,6 +230,13 @@ function parseArgs(argv: string[]): CliOptions {
       opts.apply = true;
     } else if (arg === "--verbose") {
       opts.verbose = true;
+    } else if (arg === "--port") {
+      opts.port = Number(argv[++i]);
+      if (!Number.isInteger(opts.port) || opts.port < 0 || opts.port > 65535) {
+        throw new Error("--port expects a valid port number");
+      }
+    } else if (arg === "--no-open") {
+      opts.noOpen = true;
     } else if (arg === "--min-score") {
       opts.minScore = Number(argv[++i]);
       if (!Number.isFinite(opts.minScore) || opts.minScore < 0 || opts.minScore > 100) {
@@ -252,7 +255,7 @@ function parseArgs(argv: string[]): CliOptions {
   }
   if (positional.length > 0) {
     const cmd = positional[0];
-    if (cmd !== "check" && cmd !== "fix" && cmd !== "agents" && cmd !== "restore") {
+    if (cmd !== "check" && cmd !== "fix" && cmd !== "agents" && cmd !== "restore" && cmd !== "serve") {
       throw new Error(`unknown command "${cmd}" (see --help)`);
     }
     opts.command = cmd;
@@ -269,6 +272,7 @@ function printHelp(): void {
 
   commands:
     check     scan installed agents and print a health report (default)
+    serve     open the local web dashboard in your browser
     fix       quarantine never-invoked skills (dry-run unless --apply)
     restore   list quarantined skills, or move one back: restore <name>
     agents    list supported agents and whether they were detected
@@ -281,10 +285,13 @@ function printHelp(): void {
     --apply         with fix: actually move directories
     --verbose       show informational findings hidden by default
     --min-score <n> exit with code 1 when the overall score is below n (CI)
+    --port <n>      with serve: port for the dashboard (default 7466)
+    --no-open       with serve: don't open the browser automatically
     --help, -h      show this help
 
   examples:
     skill-slim
+    skill-slim serve
     skill-slim check --agent claude-code --days 14
     skill-slim fix --apply
     skill-slim restore verify-engineering-work
