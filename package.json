@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "node src/cli.ts",
-    "test": "node --test \"tests/*.test.ts\""
+    "test": "node --test tests/*.test.ts"
   },
   "keywords": [
     "claude-code",
