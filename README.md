@@ -1,5 +1,7 @@
 # skill-slim
 
+<p align="center"><img src="logo.png" width="150" alt="skill-slim logo"></p>
+
 > Health check & slim-down for your AI coding agent's skills, plugins and context files.
 > Works with **Claude Code · Codex CLI · Gemini CLI · Cursor**.
 
@@ -45,7 +47,7 @@ and safely quarantines the dead weight.
   your browser: score rings, per-agent bills, one-click slim-down with a live
   before/after score, and one-click restore from quarantine
 - 🤖 **CI-ready** — `--min-score <n>` exits 1 when the health score drops below the gate
-- 📦 **Zero runtime dependencies** — plain Node ≥ 22.6, no install step
+- 📦 **Zero runtime dependencies** — plain Node ≥ 22.18, no install step
 
 ## Usage
 
@@ -133,7 +135,7 @@ network requests.
 ## Contributing
 
 PRs welcome — especially new agent adapters. An adapter is one file in `src/adapters/`
-implementing `detect()` + `scan()`. Run tests with `npm test` (24 tests, no deps).
+implementing `detect()` + `scan()`. Run tests with `npm test` (zero deps, sub-second).
 
 ## 中文说明
 

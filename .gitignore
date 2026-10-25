@@ -1,5 +1,7 @@
 node_modules/
 dist/
 *.log
-skill-doctor-report.html
+*.zip
+*-report.html
+report.html
 .DS_Store
