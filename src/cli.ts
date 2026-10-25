@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 import * as path from "node:path";
 import { ADAPTERS } from "./adapters/index.ts";
-import { grade, runChecks } from "./core/checks.ts";
+import { evaluateGates, grade, runChecks } from "./core/checks.ts";
 import { collect, getHome } from "./core/collect.ts";
 import { renderHtml, renderTerminal, toJson, writeReportFile } from "./core/report.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
 import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 interface CliOptions {
   command: string;
@@ -20,6 +20,7 @@ interface CliOptions {
   apply: boolean;
   verbose: boolean;
   minScore?: number;
+  maxAlwaysOnTokens?: number;
   port?: number;
   noOpen: boolean;
   help: boolean;
@@ -74,9 +75,10 @@ export async function main(argv: string[]): Promise<number> {
     writeReportFile(opts.html, renderHtml(report));
     if (!opts.json) console.log(`HTML report written to ${opts.html}`);
   }
-  if (opts.minScore !== undefined && report.score < opts.minScore) {
+  const failures = evaluateGates(report, { minScore: opts.minScore, maxAlwaysOnTokens: opts.maxAlwaysOnTokens });
+  if (failures.length > 0) {
     if (!opts.json) {
-      console.error(`health score ${report.score} is below --min-score ${opts.minScore}`);
+      for (const f of failures) console.error(f);
     }
     return 1;
   }
@@ -242,6 +244,11 @@ function parseArgs(argv: string[]): CliOptions {
       if (!Number.isFinite(opts.minScore) || opts.minScore < 0 || opts.minScore > 100) {
         throw new Error("--min-score expects a number between 0 and 100");
       }
+    } else if (arg === "--max-always-on-tokens") {
+      opts.maxAlwaysOnTokens = Number(argv[++i]);
+      if (!Number.isFinite(opts.maxAlwaysOnTokens) || opts.maxAlwaysOnTokens < 0) {
+        throw new Error("--max-always-on-tokens expects a non-negative number");
+      }
     } else if (arg === "--help" || arg === "-h") {
       opts.help = true;
     } else if (arg === "--version") {
@@ -285,6 +292,8 @@ function printHelp(): void {
     --apply         with fix: actually move directories
     --verbose       show informational findings hidden by default
     --min-score <n> exit with code 1 when the overall score is below n (CI)
+    --max-always-on-tokens <n>
+                    exit with code 1 when always-on context exceeds n tokens (CI)
     --port <n>      with serve: port for the dashboard (default 7466)
     --no-open       with serve: don't open the browser automatically
     --help, -h      show this help
@@ -295,7 +304,7 @@ function printHelp(): void {
     skill-slim check --agent claude-code --days 14
     skill-slim fix --apply
     skill-slim restore verify-engineering-work
-    skill-slim --min-score 80 && npm test   # in CI
+    skill-slim --min-score 80 --max-always-on-tokens 3000 && npm test   # in CI
 `);
 }
 

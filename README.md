@@ -46,25 +46,31 @@ and safely quarantines the dead weight.
 - 🖥️ **Local web dashboard** — `skill-slim serve` opens a wood-and-paper dashboard in
   your browser: score rings, per-agent bills, one-click slim-down with a live
   before/after score, and one-click restore from quarantine
-- 🤖 **CI-ready** — `--min-score <n>` exits 1 when the health score drops below the gate
+- 🤖 **CI-ready** — `--min-score <n>` and `--max-always-on-tokens <n>` exit 1
+  when health drops below the gate or always-on context grows past the budget
 - 📦 **Zero runtime dependencies** — plain Node ≥ 22.18, no install step
 
 ## Usage
 
 ```bash
-git clone https://github.com/0718lol/skill-slim && cd skill-slim
+npx skill-slim                         # health check across all detected agents
+npx skill-slim serve                   # web dashboard, opens in your browser
+npx skill-slim agents                  # which agents were found on this machine
+npx skill-slim fix                     # dry-run: plan + upside (tokens & $ saved)
+npx skill-slim fix --apply             # quarantine, then re-score: 76 → 91
+npx skill-slim restore                 # list quarantined skills
+npx skill-slim restore <name>          # move one back to its original location
+npx skill-slim --json                  # machine-readable output
+npx skill-slim --html report.html      # shareable HTML report card
+npx skill-slim --agent claude-code,codex --days 14
+npx skill-slim --verbose               # expand collapsed informational findings
+```
 
-node src/cli.ts                        # health check across all detected agents
-node src/cli.ts serve                  # web dashboard, opens in your browser
-node src/cli.ts agents                 # which agents were found on this machine
-node src/cli.ts fix                    # dry-run: plan + upside (tokens & $ saved)
-node src/cli.ts fix --apply            # quarantine, then re-score: 76 → 91
-node src/cli.ts restore                # list quarantined skills
-node src/cli.ts restore <name>         # move one back to its original location
-node src/cli.ts --json                 # machine-readable output
-node src/cli.ts --html report.html     # shareable HTML report card
-node src/cli.ts --agent claude-code,codex --days 14
-node src/cli.ts --verbose              # expand collapsed informational findings
+Or from a git clone (`node src/cli.ts` accepts the same commands):
+
+```bash
+git clone https://github.com/0718lol/skill-slim && cd skill-slim
+node src/cli.ts
 ```
 
 ## Web dashboard
@@ -79,13 +85,14 @@ machine, no framework and no build step (one static page + `node:http`). It can:
 - apply the plan (double-confirmed) and show the score moving 76 → 91 live
 - list the quarantine and restore any skill with one click
 
-CI gate — fail the build when your skills repo gets bloated:
+CI gate — fail the build when your skills repo gets bloated. Gate on the health
+score, on a hard always-on token budget, or both:
 
 ```yaml
-- run: node src/cli.ts --min-score 85
+- run: npx skill-slim --min-score 85 --max-always-on-tokens 3000
 ```
 
-npm package (`npx skill-slim`) ships once the CLI is battle-tested — see roadmap.
+Published to npm — `npx skill-slim` runs with zero install (Node ≥ 22.18).
 
 ## What gets scanned
 
@@ -130,7 +137,7 @@ network requests.
 - [ ] Embedding-based duplicate detection (optional local model)
 - [ ] MCP server tool-definition pricing
 - [ ] GitHub Action that posts a health report on your skills repo
-- [ ] `npm i -g skill-slim` / `npx skill-slim` distribution
+- [x] `npm i -g skill-slim` / `npx skill-slim` distribution
 
 ## Contributing
 

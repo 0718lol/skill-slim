@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { runChecks } from "../src/core/checks.ts";
+import { evaluateGates, runChecks } from "../src/core/checks.ts";
 import type { AgentScan, Skill } from "../src/types.ts";
 
 function skill(overrides: Partial<Skill>): Skill {
@@ -134,4 +134,18 @@ test("undetected agent scores 100 without findings", () => {
   const report = runChecks(scan({ detected: false, skills: [skill({})] }));
   assert.equal(report.detected, false);
   assert.equal(report.score, 100);
+});
+
+test("gates pass quietly and fail with one message per violated gate", () => {
+  const healthy = { score: 95, totalAlwaysOnTokens: 500 };
+  assert.deepEqual(evaluateGates(healthy, { minScore: 85, maxAlwaysOnTokens: 1000 }), []);
+
+  const failing = { score: 70, totalAlwaysOnTokens: 4500 };
+  const failures = evaluateGates(failing, { minScore: 85, maxAlwaysOnTokens: 3000 });
+  assert.equal(failures.length, 2);
+  assert.ok(failures[0].includes("--min-score"));
+  assert.ok(failures[1].includes("--max-always-on-tokens"));
+
+  // unset gates never fail, even on a terrible report
+  assert.deepEqual(evaluateGates(failing, {}), []);
 });

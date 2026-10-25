@@ -1,4 +1,4 @@
-import type { AgentReport, AgentScan, Finding } from "../types.ts";
+import type { AgentReport, AgentScan, Finding, Report } from "../types.ts";
 import { similarity } from "../util/similarity.ts";
 import { billPer1000Requests, estimateTokens, PRICE_PER_MTOK } from "../util/tokens.ts";
 
@@ -172,4 +172,21 @@ export function grade(score: number): string {
   if (score >= 78) return "B";
   if (score >= 60) return "C";
   return "D";
+}
+
+/** CI gates: one failure message per violated gate; empty means the build passes. */
+export function evaluateGates(
+  report: Pick<Report, "score" | "totalAlwaysOnTokens">,
+  gates: { minScore?: number; maxAlwaysOnTokens?: number },
+): string[] {
+  const failures: string[] = [];
+  if (gates.minScore !== undefined && report.score < gates.minScore) {
+    failures.push(`health score ${report.score} is below --min-score ${gates.minScore}`);
+  }
+  if (gates.maxAlwaysOnTokens !== undefined && report.totalAlwaysOnTokens > gates.maxAlwaysOnTokens) {
+    failures.push(
+      `always-on context ~${report.totalAlwaysOnTokens.toLocaleString()} tokens exceeds --max-always-on-tokens ${gates.maxAlwaysOnTokens.toLocaleString()}`,
+    );
+  }
+  return failures;
 }

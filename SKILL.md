@@ -2,7 +2,7 @@
 name: skill-slim
 description: Health check and slim-down for AI coding agent skills, rules, plugins, and context files. Audits loaded skills across Claude Code, Codex CLI, Gemini CLI, and Cursor, calculates always-on token costs and dollar spend, detects duplicate and never-invoked skills, and safely quarantines dead-weight context.
 metadata:
-  version: 0.1.0
+  version: 0.2.0
   author: 0718lol
   homepage: https://github.com/0718lol/skill-slim
   tags:
@@ -62,6 +62,11 @@ node src/cli.ts --html report.html
 Filter by specific agents or adjust the transcript inspection window (default 30 days):
 ```bash
 node src/cli.ts --agent claude-code,gemini-cli --days 14
+```
+
+Fail a CI build on health (score gate) or always-on context growth (token budget gate):
+```bash
+npx skill-slim --min-score 85 --max-always-on-tokens 3000
 ```
 
 ### 2. Check Supported & Installed Agents

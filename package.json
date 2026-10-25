@@ -1,9 +1,17 @@
 {
   "name": "skill-slim",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Health check & slim-down for your AI coding agent's skills, plugins and context files. Works with Claude Code, Codex, Gemini CLI and Cursor.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0718lol/skill-slim.git"
+  },
+  "bugs": {
+    "url": "https://github.com/0718lol/skill-slim/issues"
+  },
+  "homepage": "https://github.com/0718lol/skill-slim#readme",
   "engines": {
     "node": ">=22.18"
   },
@@ -27,6 +35,7 @@
   ],
   "files": [
     "src",
+    "SKILL.md",
     "README.md",
     "LICENSE"
   ]
