@@ -1,4 +1,12 @@
-export type AgentId = "claude-code" | "codex" | "gemini-cli" | "cursor";
+export type AgentId =
+  | "claude-code"
+  | "codex"
+  | "gemini-cli"
+  | "cursor"
+  | "opencode"
+  | "windsurf"
+  | "zed"
+  | "copilot-cli";
 
 export interface ScanContext {
   home: string;

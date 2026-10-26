@@ -1,7 +1,7 @@
 {
   "name": "skill-slim",
   "version": "0.2.0",
-  "description": "Health check & slim-down for your AI coding agent's skills, plugins and context files. Works with Claude Code, Codex, Gemini CLI and Cursor.",
+  "description": "Health check & slim-down for your AI coding agent's skills, plugins and context files. Works with Claude Code, Codex, Gemini CLI, Cursor, opencode, Windsurf, Zed and Copilot CLI.",
   "type": "module",
   "license": "MIT",
   "repository": {

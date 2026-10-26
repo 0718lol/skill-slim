@@ -3,7 +3,7 @@
 <p align="center"><img src="logo.png" width="150" alt="skill-slim logo"></p>
 
 > Health check & slim-down for your AI coding agent's skills, plugins and context files.
-> Works with **Claude Code · Codex CLI · Gemini CLI · Cursor**.
+> Works with **Claude Code · Codex CLI · Gemini CLI · Cursor · opencode · Windsurf · Zed · Copilot CLI**.
 
 Every skill description and rules file you install rides along in **every** conversation.
 Most setups carry dead weight: duplicated skills, prompts that never fire, oversized rule
@@ -26,7 +26,8 @@ and safely quarantines the dead weight.
 
 ## Features
 
-- 🩺 **Multi-agent** — one scan covers Claude Code, Codex CLI, Gemini CLI and Cursor
+- 🩺 **Multi-agent** — one scan covers eight agents: Claude Code, Codex CLI,
+  Gemini CLI, Cursor, opencode, Windsurf, Zed and Copilot CLI
 - 💸 **Always-on token bill** — every always-loaded byte, converted to tokens and an
   estimated USD cost per 1,000 conversations *and per month at your observed pace*
 - 👯 **Duplicate detection** — flags skills whose descriptions overlap enough to compete
@@ -102,6 +103,10 @@ Published to npm — `npx skill-slim` runs with zero install (Node ≥ 22.18).
 | Codex CLI | `~/.codex/skills`, `~/.codex/prompts`, plugin bundles | global & project `AGENTS.md` | ✅ exec calls reading a `SKILL.md` + leading slash commands |
 | Gemini CLI | `~/.gemini/config/skills`, `~/.gemini/skills` | global & project `GEMINI.md`, extensions | ✅ Antigravity conversation DBs, evidence-gated |
 | Cursor | non-always-apply `.cursor/rules/*.mdc` | always-apply rules | conversations only (`ai-tracking`); rule usage isn't logged |
+| opencode | `~/.config/opencode/skills`, commands; compat `~/.claude/skills`, `~/.agents/skills` | global & project `AGENTS.md` (CLAUDE.md fallback) | — session storage not parsed yet |
+| Windsurf | `.windsurf`/`.devin` rules & workflows, `~/.codeium/windsurf/global_workflows` | `memories/global_rules.md`, `.windsurfrules`, `always_on` rules | — not logged locally |
+| Zed | `~/.agents/skills`, `.agents/skills` (cross-agent standard) | `~/.config/zed/AGENTS.md`, project `AGENTS.md` | — not logged locally |
+| Copilot CLI | — (no local skill store) | `~/.copilot/copilot-instructions.md`, `.github/copilot-instructions.md` | — |
 
 Everything stays on your machine: skill-slim reads local files only and makes no
 network requests.
@@ -125,6 +130,9 @@ network requests.
   `~/.cursor/ai-tracking/ai-code-tracking.db`) are read — they power the monthly bill.
 - `fix` only ever moves skills you own (global/project). Plugin-bundled skills live in
   agent-managed caches and are reported as informational — uninstall the plugin instead.
+- Cross-agent compatibility roots (`~/.claude/skills`, `~/.agents/skills`) are loaded by
+  several agents; each agent's bill counts what it really carries, and `fix` quarantines
+  a physical directory only once.
 
 ## Roadmap
 

@@ -33,12 +33,18 @@ function manifestPath(home: string): string {
  */
 export function planFix(scans: AgentScan[]): Move[] {
   const moves: Move[] = [];
+  // Cross-agent compatibility dirs (~/.claude/skills, ~/.agents/skills) can be
+  // carried by several agents at once; one physical directory is quarantined
+  // exactly once, attributed to the first agent that reports it.
+  const seen = new Set<string>();
   for (const scan of scans) {
     if (!scan.detected || !scan.usageAvailable) continue;
     for (const skill of scan.skills) {
       if (skill.source !== "global" && skill.source !== "project") continue;
+      if (seen.has(skill.path)) continue;
       const stat = scan.usage.get(skill.name.toLowerCase());
       if (stat && stat.count > 0) continue;
+      seen.add(skill.path);
       moves.push({
         agent: scan.id,
         from: skill.path,

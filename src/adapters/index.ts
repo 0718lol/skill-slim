@@ -3,8 +3,21 @@ import { claudeCodeAdapter } from "./claude-code.ts";
 import { codexAdapter } from "./codex.ts";
 import { geminiCliAdapter } from "./gemini-cli.ts";
 import { cursorAdapter } from "./cursor.ts";
+import { opencodeAdapter } from "./opencode.ts";
+import { windsurfAdapter } from "./windsurf.ts";
+import { zedAdapter } from "./zed.ts";
+import { copilotCliAdapter } from "./copilot-cli.ts";
 
-export const ADAPTERS: Adapter[] = [claudeCodeAdapter, codexAdapter, geminiCliAdapter, cursorAdapter];
+export const ADAPTERS: Adapter[] = [
+  claudeCodeAdapter,
+  codexAdapter,
+  geminiCliAdapter,
+  cursorAdapter,
+  opencodeAdapter,
+  windsurfAdapter,
+  zedAdapter,
+  copilotCliAdapter,
+];
 
 export function resolveAdapters(selected?: string[]): Adapter[] {
   if (!selected || selected.length === 0) return ADAPTERS;

@@ -65,7 +65,7 @@ export async function loadContextFiles(
 }
 
 /** Load flat `*.md` prompt files (Codex-style) as individually-invoked skills. */
-export async function loadPromptFiles(agent: AgentId, dir: string): Promise<Skill[]> {
+export async function loadPromptFiles(agent: AgentId, dir: string, source: SkillSource = "global"): Promise<Skill[]> {
   const skills: Skill[] = [];
   for (const file of await listFiles(dir, ".md")) {
     const raw = await readFileSafe(file);
@@ -83,7 +83,7 @@ export async function loadPromptFiles(agent: AgentId, dir: string): Promise<Skil
       description: data.description || firstLine.slice(0, 200),
       body,
       path: file,
-      source: "global",
+      source,
     });
   }
   return skills;

@@ -285,7 +285,8 @@ function printHelp(): void {
     agents    list supported agents and whether they were detected
 
   options:
-    --agent <a,b>   only scan these agents (claude-code, codex, gemini-cli, cursor)
+    --agent <a,b>   only scan these agents (claude-code, codex, gemini-cli, cursor,
+                    opencode, windsurf, zed, copilot-cli)
     --days <n>      usage window in days (default 30)
     --json          machine-readable JSON output
     --html <file>   also write a shareable HTML report

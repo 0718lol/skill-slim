@@ -1,6 +1,6 @@
 ---
 name: skill-slim
-description: Health check and slim-down for AI coding agent skills, rules, plugins, and context files. Audits loaded skills across Claude Code, Codex CLI, Gemini CLI, and Cursor, calculates always-on token costs and dollar spend, detects duplicate and never-invoked skills, and safely quarantines dead-weight context.
+description: Health check and slim-down for AI coding agent skills, rules, plugins, and context files. Audits loaded skills across Claude Code, Codex CLI, Gemini CLI, Cursor, opencode, Windsurf, Zed, and Copilot CLI, calculates always-on token costs and dollar spend, detects duplicate and never-invoked skills, and safely quarantines dead-weight context.
 metadata:
   version: 0.2.0
   author: 0718lol
@@ -18,7 +18,7 @@ metadata:
 
 # skill-slim
 
-> Health check & slim-down for your AI coding agent's skills, plugins, and context files. Works across **Claude Code**, **Codex CLI**, **Gemini CLI**, and **Cursor**.
+> Health check & slim-down for your AI coding agent's skills, plugins, and context files. Works across **Claude Code**, **Codex CLI**, **Gemini CLI**, **Cursor**, **opencode**, **Windsurf**, **Zed**, and **Copilot CLI**.
 
 Every skill description, system prompt, and instruction file loaded into an agent is passed in **every** conversation context. `skill-slim` inspects installed skills and rules, computes token and dollar costs, detects duplicate triggers, identifies never-invoked skills, and provides a safe, reversible quarantine mechanism.
 
@@ -81,6 +81,10 @@ Supported adapters:
 - **Codex CLI**: `~/.codex/skills`, `AGENTS.md`, and exec tool calls.
 - **Gemini CLI / Antigravity**: `~/.gemini/config/skills`, `GEMINI.md`, and Antigravity conversation DBs.
 - **Cursor**: `.cursor/rules/*.mdc`, always-apply rules, and tracking DB.
+- **opencode**: `~/.config/opencode/skills` + commands, compat `~/.claude/skills` and `~/.agents/skills`, `AGENTS.md`.
+- **Windsurf**: `.windsurf`/`.devin` rules & workflows, `~/.codeium/windsurf` global rules.
+- **Zed**: `~/.agents/skills` (cross-agent standard), `~/.config/zed/AGENTS.md`.
+- **Copilot CLI**: `~/.copilot/copilot-instructions.md`, `.github/copilot-instructions.md`.
 
 ### 3. Dry-Run Optimization Plan (Token & Dollar Savings)
 Before making any changes, compute the optimization plan to see recoverable tokens:
