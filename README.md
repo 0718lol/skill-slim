@@ -149,8 +149,11 @@ network requests.
 
 ## Contributing
 
-PRs welcome — especially new agent adapters. An adapter is one file in `src/adapters/`
-implementing `detect()` + `scan()`. Run tests with `npm test` (zero deps, sub-second).
+PRs welcome — especially new agent adapters. An adapter is one file in
+`src/adapters/` implementing `detect()` + `scan()` plus a test and a doc; see
+[docs/adapters/](docs/adapters/) for the per-adapter data-source docs and the
+[NEW_ADAPTER.md](docs/adapters/NEW_ADAPTER.md) guide. Run tests with `npm
+test` (zero deps, sub-second).
 
 ## 中文说明
 
