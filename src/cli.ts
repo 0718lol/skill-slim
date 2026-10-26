@@ -4,6 +4,7 @@ import { ADAPTERS } from "./adapters/index.ts";
 import { evaluateGates, grade, runChecks } from "./core/checks.ts";
 import { collect, getHome } from "./core/collect.ts";
 import { renderHtml, renderTerminal, toJson, writeReportFile } from "./core/report.ts";
+import { renderWrappedHtml } from "./core/wrapped.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
 import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
@@ -65,6 +66,10 @@ export async function main(argv: string[]): Promise<number> {
     return runFix(opts, collected);
   }
 
+  if (opts.command === "wrapped") {
+    return runWrapped(opts, collected);
+  }
+
   const { report } = collected;
   if (opts.json) {
     console.log(toJson(report));
@@ -82,6 +87,38 @@ export async function main(argv: string[]): Promise<number> {
     }
     return 1;
   }
+  return 0;
+}
+
+async function runWrapped(
+  opts: CliOptions,
+  collected: Awaited<ReturnType<typeof collect>>,
+): Promise<number> {
+  const { report, scans } = collected;
+  const file = opts.html ?? "skill-slim-wrapped.html";
+  writeReportFile(file, renderWrappedHtml(report, scans));
+
+  // terminal teaser: top skill + sleepers + score, the rest lives in the file
+  const detected = scans.filter((s) => s.detected);
+  const totals = new Map<string, number>();
+  for (const scan of detected) {
+    for (const [name, stat] of scan.usage) {
+      if (stat.count > 0) totals.set(name, (totals.get(name) ?? 0) + stat.count);
+    }
+  }
+  const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
+  let sleepers = 0;
+  for (const scan of detected) {
+    if (!scan.usageAvailable) continue;
+    for (const skill of scan.skills) {
+      const stat = scan.usage.get(skill.name.toLowerCase());
+      if (!stat || stat.count === 0) sleepers++;
+    }
+  }
+
+  console.log(`\n  skill-slim wrapped · 近 ${opts.days} 天`);
+  console.log(`  ${top ? `最常用: ${top[0]} (${top[1]} 次)` : "无可解析的调用记录"} · 从未调用: ${sleepers} 个 · 健康分 ${report.score} (${grade(report.score)})`);
+  console.log(`  ✓ 技能账单已写入 ${file} — 打开它，分享你的账单\n`);
   return 0;
 }
 
@@ -262,7 +299,7 @@ function parseArgs(argv: string[]): CliOptions {
   }
   if (positional.length > 0) {
     const cmd = positional[0];
-    if (cmd !== "check" && cmd !== "fix" && cmd !== "agents" && cmd !== "restore" && cmd !== "serve") {
+    if (cmd !== "check" && cmd !== "fix" && cmd !== "agents" && cmd !== "restore" && cmd !== "serve" && cmd !== "wrapped") {
       throw new Error(`unknown command "${cmd}" (see --help)`);
     }
     opts.command = cmd;
@@ -282,6 +319,7 @@ function printHelp(): void {
     serve     open the local web dashboard in your browser
     fix       quarantine never-invoked skills (dry-run unless --apply)
     restore   list quarantined skills, or move one back: restore <name>
+    wrapped   write a shareable skills bill (leaderboard + sleepers)
     agents    list supported agents and whether they were detected
 
   options:
