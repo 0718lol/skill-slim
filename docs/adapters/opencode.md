@@ -25,8 +25,14 @@ back to `~/.claude/CLAUDE.md`; project `<cwd>/AGENTS.md`, falling back to
 
 ## Usage
 
-Session storage is SQLite under `~/.local/share/opencode/` — parsing is on
-the roadmap (`usage unknown` for now).
+Session storage is SQLite at `~/.local/share/opencode/opencode*.db` (or
+`$XDG_DATA_HOME/opencode/`), verified on a real database: legacy `part.data`
+rows and 2.x `session_message.data` rows are scanned for
+`skills/<name>/SKILL.md` references, windowed by `time_created` (unix ms).
+Conversations = `session` rows with `time_updated` inside the window.
+**Evidence-gated:** usage is "unknown" unless some payload actually mentions
+the skill system. Not yet parsed: the file-based `storage/` JSON layout of
+intermediate 1.x builds.
 
 ## Edge cases covered by tests
 

@@ -103,9 +103,9 @@ Published to npm — `npx skill-slim` runs with zero install (Node ≥ 22.18).
 | Codex CLI | `~/.codex/skills`, `~/.codex/prompts`, plugin bundles | global & project `AGENTS.md` | ✅ exec calls reading a `SKILL.md` + leading slash commands |
 | Gemini CLI | `~/.gemini/config/skills`, `~/.gemini/skills` | global & project `GEMINI.md`, extensions | ✅ Antigravity conversation DBs, evidence-gated |
 | Cursor | non-always-apply `.cursor/rules/*.mdc` | always-apply rules | conversations only (`ai-tracking`); rule usage isn't logged |
-| opencode | `~/.config/opencode/skills`, commands; compat `~/.claude/skills`, `~/.agents/skills` | global & project `AGENTS.md` (CLAUDE.md fallback) | — session storage not parsed yet |
+| opencode | `~/.config/opencode/skills`, commands; compat `~/.claude/skills`, `~/.agents/skills` | global & project `AGENTS.md` (CLAUDE.md fallback) | ✅ session SQLite (`part`/`session_message`, evidence-gated) |
 | Windsurf | `.windsurf`/`.devin` rules & workflows, `~/.codeium/windsurf/global_workflows` | `memories/global_rules.md`, `.windsurfrules`, `always_on` rules | — not logged locally |
-| Zed | `~/.agents/skills`, `.agents/skills` (cross-agent standard) | `~/.config/zed/AGENTS.md`, project `AGENTS.md` | — not logged locally |
+| Zed | `~/.agents/skills`, `.agents/skills` (cross-agent standard) | `~/.config/zed/AGENTS.md`, project `AGENTS.md` | ✅ threads SQLite (zstd payloads, evidence-gated) |
 | Copilot CLI | — (no local skill store) | `~/.copilot/copilot-instructions.md`, `.github/copilot-instructions.md` | — |
 
 Everything stays on your machine: skill-slim reads local files only and makes no
@@ -139,6 +139,7 @@ network requests.
 - [x] `restore` command to un-quarantine by name
 - [x] Usage parsing for Codex (exec-proxy + slash commands)
 - [x] Usage parsing for Gemini CLI (Antigravity DBs, evidence-gated)
+- [x] Usage parsing for opencode & Zed (session/thread SQLite, evidence-gated)
 - [x] Conversation counts for Cursor's monthly bill
 - [x] Local web dashboard (`skill-slim serve`)
 - [ ] Per-rule usage for Cursor (not logged locally by Cursor)

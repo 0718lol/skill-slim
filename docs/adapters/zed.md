@@ -23,8 +23,14 @@ billed under their primary agents rather than double-counted here.
 
 ## Usage
 
-Agent threads live in a SQLite database (`threads/threads.db` under Zed's app
-data dir) — parsing is on the roadmap (`usage unknown` for now).
+Agent threads live in one SQLite database (`threads/threads.db` under Zed's
+app-data dir: `~/Library/Application Support/Zed/` on macOS,
+`~/.local/share/zed/` on Linux, `%LOCALAPPDATA%\Zed\` on Windows — layout per
+Zed's serialization source and CodeBurn's provider docs). Each `threads.data`
+row is the thread JSON — zstd-compressed on current Zed (`data_type="zstd"`,
+decompressed with Node's built-in zlib; threads are skipped with a notice on
+Node < 22.15), plain JSON on legacy rows. Threads are windowed by the
+`updated_at` field inside the JSON. **Evidence-gated** like every adapter.
 
 ## Edge cases covered by tests
 

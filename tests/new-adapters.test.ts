@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { DatabaseSync } from "node:sqlite";
+import * as zlib from "node:zlib";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -173,4 +175,105 @@ test("planFix quarantines a shared compat directory exactly once", () => {
   assert.equal(moves[0].from, shared);
   assert.equal(moves[0].agent, "claude-code");
   fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+const NOW = Date.now();
+const OLD = 0;
+
+function makeOpencodeDb(home: string, withSkillTrace: boolean): void {
+  const dir = path.join(home, ".local", "share", "opencode");
+  fs.mkdirSync(dir, { recursive: true });
+  const db = new DatabaseSync(path.join(dir, "opencode.db"));
+  db.exec("CREATE TABLE part (time_created INTEGER, data TEXT)");
+  db.exec("CREATE TABLE session (time_updated INTEGER)");
+  const trace = withSkillTrace
+    ? "cat ~/.config/opencode/skills/alpha/SKILL.md"
+    : "plain assistant text without skills";
+  db.prepare("INSERT INTO part VALUES (?, ?)").run(NOW, trace);
+  db.prepare("INSERT INTO part VALUES (?, ?)").run(OLD, "skills/stale/SKILL.md mentioned outside the window");
+  db.prepare("INSERT INTO session VALUES (?)").run(NOW);
+  db.prepare("INSERT INTO session VALUES (?)").run(OLD);
+  db.close();
+}
+
+test("opencode parses gated usage and windowed conversations from its session db", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "sd-ocdb-"));
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true });
+  makeOpencodeDb(home, true);
+
+  const scan = await opencodeAdapter.scan({ home, cwd: home, windowDays: 30 });
+  assert.equal(scan.detected, true);
+  assert.equal(scan.usageAvailable, true);
+  assert.ok((scan.usage.get("alpha")?.count ?? 0) >= 1);
+  assert.ok(!scan.usage.has("stale"), "row outside the window must not count");
+  assert.equal(scan.conversationCount, 1);
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+test("opencode holds the evidence gate on databases that never mention skills", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "sd-ocdb2-"));
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true });
+  makeOpencodeDb(home, false);
+
+  const scan = await opencodeAdapter.scan({ home, cwd: home, windowDays: 30 });
+  assert.equal(scan.usageAvailable, false);
+  assert.ok(scan.notes.some((n) => n.includes("usage unknown")));
+  assert.equal(scan.conversationCount, 1);
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+function zedThreadsDb(home: string): string {
+  const dir =
+    process.platform === "darwin"
+      ? path.join(home, "Library", "Application Support", "Zed", "threads")
+      : process.platform === "win32"
+        ? path.join(home, "AppData", "Local", "Zed", "threads")
+        : path.join(home, ".local", "share", "zed", "threads");
+  fs.mkdirSync(dir, { recursive: true });
+  return path.join(dir, "threads.db");
+}
+
+test("zed parses usage from thread payloads, honoring zstd and the window", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "sd-zeddb-"));
+  fs.mkdirSync(path.join(home, ".config", "zed"), { recursive: true });
+  const db = new DatabaseSync(zedThreadsDb(home));
+  db.exec("CREATE TABLE threads (data BLOB, data_type TEXT)");
+  db.prepare("INSERT INTO threads VALUES (?, ?)").run(
+    JSON.stringify({ updated_at: NOW, text: "read ~/.agents/skills/diag/SKILL.md for diagnostics" }),
+    "json",
+  );
+  db.prepare("INSERT INTO threads VALUES (?, ?)").run(
+    JSON.stringify({ updated_at: OLD, text: "skills/ancient/SKILL.md long ago" }),
+    "json",
+  );
+  const compress = (zlib as { zstdCompressSync?: (b: Buffer) => Buffer }).zstdCompressSync;
+  let expectedConversations = 1;
+  if (compress) {
+    db.prepare("INSERT INTO threads VALUES (?, ?)").run(
+      compress(Buffer.from(JSON.stringify({ updated_at: NOW, text: "loading skills/pro/SKILL.md" }), "utf8")),
+      "zstd",
+    );
+    expectedConversations = 2;
+  }
+  db.close();
+
+  const scan = await zedAdapter.scan({ home, cwd: home, windowDays: 30 });
+  assert.equal(scan.detected, true);
+  assert.equal(scan.usageAvailable, true);
+  assert.ok((scan.usage.get("diag")?.count ?? 0) >= 1);
+  assert.ok(!scan.usage.has("ancient"));
+  if (compress) assert.ok((scan.usage.get("pro")?.count ?? 0) >= 1);
+  assert.equal(scan.conversationCount, expectedConversations);
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+test("zed reports usage unknown without a threads database", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "sd-zeddb2-"));
+  fs.mkdirSync(path.join(home, ".config", "zed"), { recursive: true });
+
+  const scan = await zedAdapter.scan({ home, cwd: home, windowDays: 30 });
+  assert.equal(scan.detected, true);
+  assert.equal(scan.usageAvailable, false);
+  assert.ok(scan.notes.some((n) => n.includes("no Zed threads database")));
+  fs.rmSync(home, { recursive: true, force: true });
 });

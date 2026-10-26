@@ -1,6 +1,7 @@
 import * as path from "node:path";
-import type { AgentId, AgentScan, ContextFile } from "../types.ts";
-import { exists, readFileSafe } from "../util/fsx.ts";
+import type { AgentId, AgentScan, ContextFile, UsageStat } from "../types.ts";
+import { exists, listFiles, readFileSafe } from "../util/fsx.ts";
+import { scanSqliteDbs } from "../util/sqlite-scan.ts";
 import { loadPromptFiles, loadSkillDirs } from "./skill-loader.ts";
 
 /**
@@ -61,20 +62,65 @@ export const opencodeAdapter = {
 
     const instructions = await instructionFiles(this.id, ctx.home, ctx.cwd);
 
-    notes.push("usage unknown — opencode session storage is not parsed yet");
+    const { usage, usageAvailable, conversationCount, notes: usageNotes } = await parseUsage(ctx.home, ctx.windowDays);
+    notes.push(...usageNotes);
+
     return {
       id: this.id,
       name: this.name,
       detected: true,
       skills: [...own, ...compat, ...commands],
       instructions,
-      usage: new Map(),
-      usageAvailable: false,
-      conversationCount: 0,
+      usage,
+      usageAvailable,
+      conversationCount,
       notes,
     };
   },
 };
+
+/**
+ * opencode usage evidence lives in SQLite sessions under
+ * ~/.local/share/opencode/ (legacy `part.data` rows, 2.x `session_message.data`).
+ * Counts are gated on seeing the skill system referenced at all — an all-zero
+ * database must read as "usage unknown", not "every skill unused".
+ */
+async function parseUsage(
+  home: string,
+  windowDays: number,
+): Promise<{ usage: Map<string, UsageStat>; usageAvailable: boolean; conversationCount: number; notes: string[] }> {
+  const notes: string[] = [];
+  const dataDir = process.env.XDG_DATA_HOME
+    ? path.join(process.env.XDG_DATA_HOME, "opencode")
+    : path.join(home, ".local", "share", "opencode");
+  const dbFiles = (await listFiles(dataDir, ".db")).filter((f) => path.basename(f).startsWith("opencode"));
+  if (dbFiles.length === 0) {
+    notes.push("no opencode session database found");
+    return { usage: new Map(), usageAvailable: false, conversationCount: 0, notes };
+  }
+
+  const cutoff = Date.now() - windowDays * 24 * 3600 * 1000;
+  // timestamps in these tables are unix milliseconds (verified on a real db)
+  const result = await scanSqliteDbs(
+    dbFiles,
+    [
+      `SELECT data FROM part WHERE time_created > ${cutoff}`,
+      `SELECT data FROM session_message WHERE time_created > ${cutoff}`,
+    ],
+    `SELECT COUNT(*) AS c FROM session WHERE time_updated > ${cutoff}`,
+    cutoff,
+    // one cumulative db updated in place — window via SQL timestamps, not mtime
+    { skipMtimeFilter: true },
+  );
+
+  notes.push(`scanned ${result.opened} session database(s)` + (result.failed > 0 ? ` (${result.failed} unreadable)` : ""));
+  if (!result.sawSkillSystem) {
+    notes.push("no skill invocations recorded in local sessions — usage unknown");
+    return { usage: new Map(), usageAvailable: false, conversationCount: result.conversations, notes };
+  }
+  notes.push("usage = SKILL.md path references in session parts (best effort)");
+  return { usage: result.hits, usageAvailable: true, conversationCount: result.conversations, notes };
+}
 
 /** Global AGENTS.md falls back to ~/.claude/CLAUDE.md; project AGENTS.md to CLAUDE.md. */
 async function instructionFiles(agent: AgentId, home: string, cwd: string): Promise<ContextFile[]> {
