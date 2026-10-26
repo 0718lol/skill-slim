@@ -1,0 +1,14 @@
+{
+  "name": "skill-slim-evals",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Minimal promptfoo eval harness for the skill-slim SKILL.md prompt",
+  "scripts": {
+    "eval": "promptfoo eval -c promptfooconfig.mjs --no-cache --no-progress-bar -o results/latest.json",
+    "gate": "node scripts/gate.mjs results/latest.json",
+    "report": "node scripts/render-report.mjs results/latest.json"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.119.14"
+  }
+}

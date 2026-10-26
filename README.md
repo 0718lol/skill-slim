@@ -148,6 +148,21 @@ network requests.
 - [ ] GitHub Action that posts a health report on your skills repo
 - [x] `npm i -g skill-slim` / `npx skill-slim` distribution
 
+## Evals
+
+The skill's `SKILL.md` is a prompt, so it gets tested like one. [`evals/`](evals/) holds a 15-case
+[promptfoo](https://promptfoo.dev) harness: it hands an agent a realistic request, grades the reply on
+command routing, safety ordering, metric interpretation and edge states, and fails the run when the
+candidate prompt drops below 90% or any safety case breaks.
+
+The current shipped prompt scores 60–67% on it; the tightened version in
+[`evals/prompts/skill-v1.md`](evals/prompts/skill-v1.md) scores 100%, for +120 always-on tokens per turn.
+
+```bash
+cd evals && cp .env.example .env    # any OpenAI-compatible endpoint
+./run.sh                            # eval → gate → results/summary.html
+```
+
 ## Contributing
 
 PRs welcome — especially new agent adapters. An adapter is one file in
