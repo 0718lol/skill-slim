@@ -22,19 +22,25 @@ export interface ServeOptions {
 /**
  * Local dashboard server. Binds 127.0.0.1 only, serves the static UI and a
  * small JSON API on top of the same scanner/fixer the CLI uses. No CORS —
- * the API is only reachable from this machine.
+ * the API is only reachable from this machine. Every request must present a
+ * loopback Host header (DNS-rebinding defense) and state-changing POSTs must
+ * carry same-origin browser metadata (CSRF defense); header-less clients
+ * (curl, CI scripts) keep working.
  */
 export async function startServer(opts: ServeOptions = {}): Promise<ServerHandle> {
   const windowDays = opts.windowDays ?? 30;
+  const bound = { port: opts.port ?? DEFAULT_PORT };
   const server = http.createServer((req, res) => {
-    handler(req, res, windowDays).catch((err) => {
-      sendJson(res, 500, { error: String(err) });
+    handler(req, res, windowDays, bound.port).catch((err) => {
+      if (!res.headersSent) sendJson(res, 500, { error: String(err) });
+      else res.destroy();
     });
   });
 
   await listenOn(server, opts.port ?? DEFAULT_PORT);
   const address = server.address();
   const port = typeof address === "object" && address ? address.port : DEFAULT_PORT;
+  bound.port = port;
   const url = `http://127.0.0.1:${port}`;
   console.log(`\n  skill-slim 仪表盘 → ${url}`);
   if (opts.open !== false) openBrowser(url);
@@ -70,7 +76,52 @@ function listenOn(server: http.Server, port: number): Promise<void> {
   });
 }
 
-async function handler(req: http.IncomingMessage, res: http.ServerResponse, windowDays: number): Promise<void> {
+const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+/** DNS-rebinding defense: only the loopback names may address the API. */
+function isLoopbackHost(host: string | undefined): boolean {
+  if (!host) return false;
+  const bare = host.toLowerCase().replace(/:\d+$/, "");
+  return LOOPBACK_HOSTNAMES.has(bare);
+}
+
+/**
+ * CSRF defense: browsers always attach Origin to POSTs and cannot forge it,
+ * so a present-but-foreign Origin (or cross-site Sec-Fetch-Site) means the
+ * request was not initiated by the dashboard page. Header-less clients are
+ * not browsers and are allowed through.
+ */
+function crossSiteRequest(req: http.IncomingMessage, port: number): boolean {
+  const origin = req.headers.origin;
+  if (origin !== undefined) {
+    let url: URL;
+    try {
+      url = new URL(origin.toLowerCase());
+    } catch {
+      return true; // unparseable origin — not the dashboard's
+    }
+    const allowed = LOOPBACK_HOSTNAMES.has(url.hostname) && url.port === String(port) && url.protocol === "http:";
+    if (!allowed) return true;
+  }
+  const site = req.headers["sec-fetch-site"];
+  if (site !== undefined && site !== "same-origin") return true;
+  return false;
+}
+
+async function handler(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  windowDays: number,
+  port: number,
+): Promise<void> {
+  if (!isLoopbackHost(req.headers.host)) {
+    sendJson(res, 403, { error: "forbidden: loopback host required" });
+    return;
+  }
+  if (req.method !== "GET" && req.method !== "HEAD" && crossSiteRequest(req, port)) {
+    sendJson(res, 403, { error: "forbidden: cross-site request rejected" });
+    return;
+  }
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
   const route = `${req.method} ${url.pathname}`;
 
@@ -119,7 +170,8 @@ async function handler(req: http.IncomingMessage, res: http.ServerResponse, wind
     return;
   }
   if (route === "POST /api/restore") {
-    const body = await readJsonBody(req);
+    const body = await readJsonBody(req, res);
+    if (body === TOO_LARGE) return; // 413 already sent
     const result = await restore(getHome(), body?.name, body?.agent);
     sendJson(res, 200, result);
     return;
@@ -132,20 +184,38 @@ function sendJson(res: http.ServerResponse, status: number, body: unknown): void
   res.end(JSON.stringify(body));
 }
 
-function readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown> | null> {
+/** Sentinel for bodies over MAX_BODY_BYTES — the 413 has been sent already. */
+const TOO_LARGE = Symbol("too-large");
+
+function readJsonBody(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): Promise<Record<string, unknown> | null | typeof TOO_LARGE> {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let tooLarge = false;
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => {
+      if (tooLarge) return;
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
-        reject(new Error("request body too large"));
-        req.destroy();
+        tooLarge = true;
+        chunks.length = 0;
+        // respond early and let the connection close gracefully — destroying
+        // the socket here would RST before the client reads the response
+        res.writeHead(413, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store",
+          Connection: "close",
+        });
+        res.end(JSON.stringify({ error: "request body too large" }));
+        resolve(TOO_LARGE);
         return;
       }
       chunks.push(chunk);
     });
     req.on("end", () => {
+      if (tooLarge) return;
       if (chunks.length === 0) return resolve(null);
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));

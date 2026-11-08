@@ -1,6 +1,10 @@
 # skill-slim
 
 <p align="center"><img src="logo.png" width="150" alt="skill-slim logo"></p>
+<p align="center">
+  <a href="https://github.com/0718lol/skill-slim/actions/workflows/ci.yml"><img src="https://github.com/0718lol/skill-slim/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/0718lol/skill-slim/actions/workflows/codeql.yml"><img src="https://github.com/0718lol/skill-slim/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
+</p>
 
 > Health check & slim-down for your AI coding agent's skills, plugins and context files.
 > Works with **Claude Code · Codex CLI · Gemini CLI · Cursor · opencode · Windsurf · Zed · Copilot CLI**.
@@ -78,7 +82,10 @@ node src/cli.ts
 
 `skill-slim serve` (or `--port 8080 --no-open` for a quieter start) starts a local
 dashboard on `http://127.0.0.1:7466` — bound to localhost only, no data leaves the
-machine, no framework and no build step (one static page + `node:http`). It can:
+machine, no framework and no build step (one static page + `node:http`). Requests
+must carry a loopback `Host` header (DNS-rebinding defense) and state-changing
+POSTs must be same-origin (CSRF defense); curl-style header-less clients keep
+working. It can:
 
 - show the overall score ring and the always-on token bill for every agent
 - list findings with severity colors, plugin-bundle noise collapsed
@@ -110,6 +117,21 @@ Published to npm — `npx skill-slim` runs with zero install (Node ≥ 22.18).
 
 Everything stays on your machine: skill-slim reads local files only and makes no
 network requests.
+
+## Security
+
+A local tool that parses agent config files, transcripts and databases — and
+serves a web dashboard — has a real attack surface, so it gets treated like one:
+
+- **OWASP-mapped threat model & self-assessment:** [docs/security.md](docs/security.md)
+- **21 security tests** in [`tests/security.test.ts`](tests/security.test.ts):
+  stored-XSS through hostile skill names, CSRF & DNS-rebinding rejection,
+  request-size caps, regex-DoS bounds, quarantine path containment,
+  restore-never-overwrites, symlink non-following, prototype-pollution inertness
+- **CodeQL static analysis** on every push (`.github/workflows/codeql.yml`),
+  results in the Security tab
+- Reports aggregate only — skill/instruction file bodies never appear in any
+  report, JSON output or API response
 
 ## Accuracy notes
 

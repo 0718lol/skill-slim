@@ -92,8 +92,16 @@ export async function applyFix(
 
   const moved: Move[] = [];
   const failed: { move: Move; error: string }[] = [];
+  const rootWithSep = path.resolve(quarantineRoot) + path.sep;
   for (const move of moves) {
-    const dest = path.join(quarantineRoot, move.to);
+    const dest = path.resolve(path.join(quarantineRoot, move.to));
+    if (dest !== rootWithSep.slice(0, -1) && !dest.startsWith(rootWithSep)) {
+      // defense in depth: planFix derives `to` from adapter ids and basenames,
+      // but this function is the only thing standing between a crafted Move
+      // and a directory move outside the quarantine root
+      failed.push({ move, error: "destination escapes the quarantine root" });
+      continue;
+    }
     try {
       await quarantineMove(move.from, dest);
       moved.push({ ...move, to: dest });
