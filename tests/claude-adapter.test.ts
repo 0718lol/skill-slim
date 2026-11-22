@@ -4,6 +4,9 @@ import { claudeCodeAdapter } from "../src/adapters/claude-code.ts";
 import { runChecks } from "../src/core/checks.ts";
 import * as path from "node:path";
 
+// fixtures carry only a handful of conversations; the gate has its own tests
+process.env.SKILL_SLIM_MIN_CONVERSATIONS ??= "0";
+
 const fixtureHome = path.join(import.meta.dirname!, "fixtures", "claude-home");
 
 test("claude adapter discovers skills, plugins, instructions and usage", async () => {

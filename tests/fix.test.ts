@@ -6,6 +6,9 @@ import * as path from "node:path";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "../src/fix.ts";
 import type { AgentScan, Skill, UsageStat } from "../src/types.ts";
 
+// fixtures carry only a handful of conversations; the gate has its own tests
+process.env.SKILL_SLIM_MIN_CONVERSATIONS ??= "0";
+
 function makeScan(tmpRoot: string, skills: { name: string; used: boolean }[]): AgentScan {
   const usage = new Map<string, UsageStat>();
   const skillObjs: Skill[] = skills.map((s) => {

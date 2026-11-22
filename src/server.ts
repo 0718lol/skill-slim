@@ -42,7 +42,7 @@ export async function startServer(opts: ServeOptions = {}): Promise<ServerHandle
   const port = typeof address === "object" && address ? address.port : DEFAULT_PORT;
   bound.port = port;
   const url = `http://127.0.0.1:${port}`;
-  console.log(`\n  skill-slim 仪表盘 → ${url}`);
+  console.log(`\n  skill-slim dashboard → ${url}`);
   if (opts.open !== false) openBrowser(url);
 
   return {

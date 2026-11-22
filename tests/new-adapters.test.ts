@@ -12,6 +12,9 @@ import { copilotCliAdapter } from "../src/adapters/copilot-cli.ts";
 import { planFix } from "../src/fix.ts";
 import type { AgentScan } from "../src/types.ts";
 
+// fixtures carry only a handful of conversations; the gate has its own tests
+process.env.SKILL_SLIM_MIN_CONVERSATIONS ??= "0";
+
 function writeSkill(dir: string, name: string, description: string): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(

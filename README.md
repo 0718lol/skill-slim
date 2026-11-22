@@ -143,7 +143,13 @@ serves a web dashboard — has a real attack surface, so it gets treated like on
 - Claude Code usage parsing is a best-effort regex over session JSONL; Codex usage is a
   proxy (exec calls reading a `SKILL.md`, leading slash commands) and only scans
   tool-call *inputs* — command outputs overcount wildly. Both may overcount, which is
-  the safe direction: it only ever *protects* a skill from the unused list.
+  the safe direction: it only ever *protects* a skill from the unused list. A skill
+  counts as used when either its frontmatter `name` or its folder name shows up.
+- "Never invoked" needs evidence: with fewer than 5 conversations in the scan window an
+  agent gets no unused findings and no quarantine plan, just a note. Override with
+  `SKILL_SLIM_MIN_CONVERSATIONS=<n>` (`0` disables the gate).
+- The headline health score is weighted by how many skills and instruction files each
+  agent carries; agents that carry nothing are left out of the average.
 - Gemini usage is **evidence-gated**: Antigravity conversation databases are scanned
   (read-only, via Node's built-in `node:sqlite`) for `SKILL.md` path references. When a
   database never mentions the skill system, the report says "usage unknown" instead of

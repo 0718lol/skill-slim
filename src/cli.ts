@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "./util/quiet-warnings.ts";
 import * as path from "node:path";
 import { ADAPTERS } from "./adapters/index.ts";
 import { evaluateGates, grade, runChecks } from "./core/checks.ts";
@@ -8,8 +9,7 @@ import { renderWrappedHtml } from "./core/wrapped.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
 import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
-
-const VERSION = "0.2.0";
+import { VERSION } from "./version.ts";
 
 interface CliOptions {
   command: string;
@@ -116,16 +116,16 @@ async function runWrapped(
     }
   }
 
-  console.log(`\n  skill-slim wrapped · 近 ${opts.days} 天`);
-  console.log(`  ${top ? `最常用: ${top[0]} (${top[1]} 次)` : "无可解析的调用记录"} · 从未调用: ${sleepers} 个 · 健康分 ${report.score} (${grade(report.score)})`);
-  console.log(`  ✓ 技能账单已写入 ${file} — 打开它，分享你的账单\n`);
+  console.log(`\n  skill-slim wrapped · last ${opts.days} days`);
+  console.log(`  ${top ? `most used: ${top[0]} (${top[1]}×)` : "no parseable invocations"} · never invoked: ${sleepers} · health ${report.score} (${grade(report.score)})`);
+  console.log(`  ✓ skill bill written to ${file} — open it and share\n`);
   return 0;
 }
 
 async function runServe(opts: CliOptions): Promise<number> {
   try {
     const handle = await startServer({ port: opts.port, open: !opts.noOpen, windowDays: opts.days });
-    console.log(`  Ctrl+C 退出。`);
+    console.log(`  Ctrl+C to quit.`);
     await handle.wait();
     return 0;
   } catch (err) {

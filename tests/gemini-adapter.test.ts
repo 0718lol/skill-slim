@@ -7,6 +7,9 @@ import * as path from "node:path";
 import { geminiCliAdapter } from "../src/adapters/gemini-cli.ts";
 import { runChecks } from "../src/core/checks.ts";
 
+// fixtures carry only a handful of conversations; the gate has its own tests
+process.env.SKILL_SLIM_MIN_CONVERSATIONS ??= "0";
+
 function writeSkill(home: string, name: string, description: string): void {
   const dir = path.join(home, ".gemini", "config", "skills", name);
   fs.mkdirSync(dir, { recursive: true });

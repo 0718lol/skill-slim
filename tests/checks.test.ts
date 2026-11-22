@@ -3,6 +3,9 @@ import { test } from "node:test";
 import { evaluateGates, runChecks } from "../src/core/checks.ts";
 import type { AgentScan, Skill } from "../src/types.ts";
 
+// fixtures carry only a handful of conversations; the gate has its own tests
+process.env.SKILL_SLIM_MIN_CONVERSATIONS ??= "0";
+
 function skill(overrides: Partial<Skill>): Skill {
   return {
     agent: "claude-code",

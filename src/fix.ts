@@ -1,5 +1,6 @@
 import { promises as fsp } from "node:fs";
 import * as path from "node:path";
+import { hasUsageEvidence, usageCount } from "./core/checks.ts";
 import type { AgentScan } from "./types.ts";
 import { exists, quarantineMove } from "./util/fsx.ts";
 import { estimateTokens, PRICE_PER_MTOK } from "./util/tokens.ts";
@@ -38,12 +39,11 @@ export function planFix(scans: AgentScan[]): Move[] {
   // exactly once, attributed to the first agent that reports it.
   const seen = new Set<string>();
   for (const scan of scans) {
-    if (!scan.detected || !scan.usageAvailable) continue;
+    if (!scan.detected || !hasUsageEvidence(scan)) continue;
     for (const skill of scan.skills) {
       if (skill.source !== "global" && skill.source !== "project") continue;
       if (seen.has(skill.path)) continue;
-      const stat = scan.usage.get(skill.name.toLowerCase());
-      if (stat && stat.count > 0) continue;
+      if (usageCount(scan, skill) > 0) continue;
       seen.add(skill.path);
       moves.push({
         agent: scan.id,

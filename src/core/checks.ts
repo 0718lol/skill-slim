@@ -6,6 +6,35 @@ const DUPLICATE_THRESHOLD = 0.6;
 const DESCRIPTION_CHAR_LIMIT = 1024;
 const BODY_LINE_LIMIT = 500;
 const BODY_TOKEN_LIMIT = 5000;
+/**
+ * Below this many conversations in the window, "never invoked" is noise, not
+ * evidence — no unused findings and no quarantine plan until it is reached.
+ * Override with SKILL_SLIM_MIN_CONVERSATIONS (e.g. 1 to disable the gate).
+ */
+export const MIN_CONVERSATIONS_FOR_UNUSED = 5;
+
+export function minConversationsForUnused(): number {
+  const raw = Number(process.env.SKILL_SLIM_MIN_CONVERSATIONS);
+  return Number.isInteger(raw) && raw >= 0 ? raw : MIN_CONVERSATIONS_FOR_UNUSED;
+}
+
+/**
+ * Usage count for a skill. Adapters key usage by whatever the transcript
+ * shows — sometimes the frontmatter name, sometimes the folder name in a
+ * SKILL.md path — so both are consulted; a hit on either counts as used.
+ */
+export function usageCount(scan: Pick<AgentScan, "usage">, skill: { name: string; dirName?: string }): number {
+  const keys = new Set([skill.name.toLowerCase()]);
+  if (skill.dirName) keys.add(skill.dirName.toLowerCase().replace(/\.(md|mdc|toml)$/, ""));
+  let count = 0;
+  for (const key of keys) count += scan.usage.get(key)?.count ?? 0;
+  return count;
+}
+
+/** Whether the scan carries enough usage evidence to call a skill unused. */
+export function hasUsageEvidence(scan: Pick<AgentScan, "usageAvailable" | "conversationCount">): boolean {
+  return scan.usageAvailable && scan.conversationCount >= minConversationsForUnused();
+}
 
 export function runChecks(scan: AgentScan, windowDays = 30): AgentReport {
   const findings: Finding[] = [];
@@ -59,11 +88,17 @@ export function runChecks(scan: AgentScan, windowDays = 30): AgentReport {
     }
   }
 
-  // 3. Unused skills (only when usage data is available).
-  if (scan.usageAvailable) {
+  // 3. Unused skills (only when there is enough usage evidence).
+  const notes = [...scan.notes];
+  if (scan.usageAvailable && !hasUsageEvidence(scan) && scan.skills.length > 0) {
+    notes.push(
+      `only ${scan.conversationCount} conversation(s) in the window — unused-skill detection needs ` +
+        `${minConversationsForUnused()}+, skipped for now`,
+    );
+  }
+  if (hasUsageEvidence(scan)) {
     for (const skill of scan.skills) {
-      const stat = scan.usage.get(skill.name.toLowerCase());
-      if (!stat || stat.count === 0) {
+      if (usageCount(scan, skill) === 0) {
         const bundled = isBundled(skill);
         findings.push({
           agent: scan.id,
@@ -104,12 +139,16 @@ export function runChecks(scan: AgentScan, windowDays = 30): AgentReport {
     const bodyLines = skill.body.split("\n").length;
     const bodyTokens = estimateTokens(skill.body);
     if (bodyLines > BODY_LINE_LIMIT || bodyTokens > BODY_TOKEN_LIMIT) {
+      const bundled = isBundled(skill);
       findings.push({
         agent: scan.id,
         kind: "convention",
-        severity: "warn",
+        // plugin-bundled bodies are the plugin author's to fix, not the user's
+        severity: bundled ? "info" : "warn",
         title: `"${skill.name}" body is large (${bodyLines} lines, ~${bodyTokens.toLocaleString()} tok)`,
-        detail: "Move reference material into separate files loaded on demand (progressive disclosure).",
+        detail: bundled
+          ? "Ships inside a plugin bundle; only the plugin author can split it up."
+          : "Move reference material into separate files loaded on demand (progressive disclosure).",
         paths: [skill.path],
       });
     }
@@ -141,7 +180,7 @@ export function runChecks(scan: AgentScan, windowDays = 30): AgentReport {
     monthlyCost,
     findings,
     score,
-    notes: scan.notes,
+    notes,
   };
 }
 

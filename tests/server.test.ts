@@ -5,6 +5,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { startServer } from "../src/server.ts";
 
+// fixtures carry only a handful of conversations; the gate has its own tests
+process.env.SKILL_SLIM_MIN_CONVERSATIONS ??= "0";
+
 async function makeFixtureHome(): Promise<string> {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "sd-server-"));
   const claude = path.join(home, ".claude");
