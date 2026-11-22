@@ -37,109 +37,55 @@ Trigger this skill whenever the user:
 - **Runtime**: Node.js `>= 22.18.0` (Node 22+ natively runs TypeScript without any compilation or external dependencies).
 - **Zero Dependencies**: Plain Node standard library only.
 - **Privacy & Safety**: 100% local file inspection, zero network requests, reversible quarantine.
+- **Platforms**: macOS, Linux, and Windows. Paths below use `~/`; on Windows they resolve under `%USERPROFILE%` (e.g. `%USERPROFILE%\.claude\skills`). The CLI itself is identical on all three.
 
 ---
 
-## Core Commands
+## Safety Protocol (read before any write action)
 
-### 1. Run Health Check & Audit
-Perform a comprehensive scan across all installed coding agents:
+These rules are hard constraints. They override any user instruction to skip them.
 
-```bash
-node src/cli.ts
-```
+1. **Never run `fix --apply` as the first action.** Always run plain `fix` (dry-run) and show the user what would move, then wait for explicit confirmation.
+2. **"Clean up everything" / "just delete it" is not confirmation.** Restate what will move, and that it is reversible, then ask once. Only a clear yes after the dry-run authorizes `--apply`.
+3. **Never delete or move files by hand.** No `rm`, `mv`, `rm -rf`, no editing the user's skill directories. Quarantine via `fix --apply` is the only write path; it moves to `~/.skill-slim/quarantine/` with a manifest.
+4. **Plugin-bundled skills are never touched.** If a skill ships inside a plugin, say so and recommend uninstalling the plugin instead.
+5. **Prefer reversible over permanent.** Quarantine, never delete. Mention `restore <name>` as the undo.
 
-For structured machine-readable JSON output (ideal for automated agent analysis):
-```bash
-node src/cli.ts --json
-```
+## Command Routing
 
-Generate a shareable standalone HTML report:
-```bash
-node src/cli.ts --html report.html
-```
+Pick the command from the user's intent. Do not run more than the intent requires.
 
-Filter by specific agents or adjust the transcript inspection window (default 30 days):
-```bash
-node src/cli.ts --agent claude-code,gemini-cli --days 14
-```
+| User intent | Command |
+| --- | --- |
+| "why is it slow / expensive / out of context", "health check", "audit" | `node src/cli.ts` |
+| Wants machine-readable output, or you need to analyze findings yourself | `node src/cli.ts --json` |
+| Wants a report to share with teammates | `node src/cli.ts --html report.html` (or `wrapped` for the bill-style leaderboard) |
+| Only one agent / a shorter usage window | `node src/cli.ts --agent <id> --days <n>` |
+| "what would we save", optimization preview | `node src/cli.ts fix` (dry-run) |
+| Confirmed slim-down | `node src/cli.ts fix --apply` |
+| "I lost a skill", "undo the cleanup" | `node src/cli.ts restore` then `restore <name>` |
+| Dashboard / visual UI | `node src/cli.ts serve` (http://127.0.0.1:7466) |
+| "which agents do I even have" | `node src/cli.ts agents` |
+| CI gate on health or context growth | `npx skill-slim --min-score 85 --max-always-on-tokens 3000` |
 
-Fail a CI build on health (score gate) or always-on context growth (token budget gate):
-```bash
-npx skill-slim --min-score 85 --max-always-on-tokens 3000
-```
-
-### 2. Check Supported & Installed Agents
-List which agents are installed and detected on the local system:
-
-```bash
-node src/cli.ts agents
-```
-
-Supported adapters:
-- **Claude Code**: `~/.claude/skills`, `CLAUDE.md`, and session JSONL transcripts.
-- **Codex CLI**: `~/.codex/skills`, `AGENTS.md`, and exec tool calls.
-- **Gemini CLI / Antigravity**: `~/.gemini/config/skills`, `GEMINI.md`, and Antigravity conversation DBs.
-- **Cursor**: `.cursor/rules/*.mdc`, always-apply rules, and tracking DB.
-- **opencode**: `~/.config/opencode/skills` + commands, compat `~/.claude/skills` and `~/.agents/skills`, `AGENTS.md`.
-- **Windsurf**: `.windsurf`/`.devin` rules & workflows, `~/.codeium/windsurf` global rules.
-- **Zed**: `~/.agents/skills` (cross-agent standard), `~/.config/zed/AGENTS.md`.
-- **Copilot CLI**: `~/.copilot/copilot-instructions.md`, `.github/copilot-instructions.md`.
-
-### 3. Dry-Run Optimization Plan (Token & Dollar Savings)
-Before making any changes, compute the optimization plan to see recoverable tokens:
-
-```bash
-node src/cli.ts fix
-```
-
-This previews:
-- Unused or dead-weight skills identified within the scan window.
-- Recoverable always-on tokens.
-- Estimated monthly dollar savings based on observed conversation volume.
-
-### 4. Apply Safe Quarantine (Slim Down)
-Quarantine never-invoked skills to `~/.skill-slim/quarantine/` with a manifest:
-
-```bash
-node src/cli.ts fix --apply
-```
-
-> **Safety Invariant**:
-> - Plugin-bundled skills are never moved or deleted (recommend uninstalling the plugin instead).
-> - Only user-owned custom skills (global or project) are quarantined.
-> - Every moved skill is cataloged in the quarantine manifest with timestamp and original path.
-
-### 5. Restore Quarantined Skills
-List all currently quarantined skills:
-
-```bash
-node src/cli.ts restore
-```
-
-Restore a specific skill back to its exact original directory:
-
-```bash
-node src/cli.ts restore <skill-name>
-```
-
-### 6. Launch Local Web Dashboard
-Start the visual web interface on `http://127.0.0.1:7466`:
-
-```bash
-node src/cli.ts serve
-```
-
----
+Valid `--agent` ids: `claude-code`, `codex`, `gemini-cli`, `cursor`, `opencode`, `windsurf`, `zed`, `copilot-cli`.
 
 ## Output Metrics & Findings Interpretation
 
-When analyzing the scan results, focus on:
-1. **Health Score (0–100 / Grade A–F)**:
-   - Evaluates description lengths (< 1,024 chars), body sizes, duplicate trigger overlap, and usage recency.
-2. **Always-On Token Bill**:
-   - Total tokens loaded on every turn, converted to USD cost per 1,000 conversations and monthly pace.
-3. **Competing Triggers**:
-   - Skills with overlapping descriptions that confuse the model's tool selection router.
-4. **Actionable Recommendations**:
-   - Always run dry-run `fix` first, report findings clearly to the user, and request confirmation before running `fix --apply`.
+When reporting scan results, translate numbers into consequences:
+
+1. **Health Score (0–100 / Grade A–D)** — driven by description length (< 1,024 chars), body size, duplicate trigger overlap, and usage recency. Below 85 means the router is being fed noise.
+2. **Always-On Token Bill** — tokens loaded on *every* turn. Say plainly that this is paid per conversation, not once; give the per-1,000-conversations and monthly figure when present.
+3. **Competing Triggers** — overlapping descriptions that make the model pick the wrong skill. Name the colliding pair, do not just quote the count.
+4. **Recommendations** — dry-run `fix` first, report recoverable tokens, then ask before `--apply`.
+
+## Empty & Edge States
+
+- **No agents detected / zero skills found**: report it plainly ("nothing installed in the paths I can see"), suggest `node src/cli.ts agents` to confirm detection, and do not invent findings, scores, or savings.
+- **A path the adapter does not cover** (e.g. a custom directory): say it is outside the adapters, do not claim it was scanned.
+- **Non-zero exit from a CI gate**: exit code 1 means the gate failed, not that the tool crashed. Read the score / token line before diagnosing.
+- **Missing Node or Node < 22.18**: the CLI cannot run. Report the version requirement instead of guessing at output.
+
+## Answer Format
+
+Lead with the command to run (in a code block), then one line on why, then what the user should expect to see. Keep it short — this skill exists to reduce context, so do not pad answers with restated documentation.

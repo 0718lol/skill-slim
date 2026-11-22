@@ -1,15 +1,23 @@
 #!/usr/bin/env node
 import "./util/quiet-warnings.ts";
+import { realpathSync } from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { ADAPTERS } from "./adapters/index.ts";
 import { evaluateGates, grade, runChecks } from "./core/checks.ts";
 import { collect, getHome } from "./core/collect.ts";
 import { renderHtml, renderTerminal, toJson, writeReportFile } from "./core/report.ts";
-import { renderWrappedHtml } from "./core/wrapped.ts";
+import { countUnused, renderWrappedHtml } from "./core/wrapped.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
 import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
 import { VERSION } from "./version.ts";
+
+// `skill-slim | head` closes the pipe early; that is a normal exit, not a crash
+process.stdout.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EPIPE") process.exit(0);
+  throw err;
+});
 
 interface CliOptions {
   command: string;
@@ -107,14 +115,8 @@ async function runWrapped(
     }
   }
   const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
-  let sleepers = 0;
-  for (const scan of detected) {
-    if (!scan.usageAvailable) continue;
-    for (const skill of scan.skills) {
-      const stat = scan.usage.get(skill.name.toLowerCase());
-      if (!stat || stat.count === 0) sleepers++;
-    }
-  }
+  const unused = countUnused(detected);
+  const sleepers = unused.owned + unused.bundled;
 
   console.log(`\n  skill-slim wrapped · last ${opts.days} days`);
   console.log(`  ${top ? `most used: ${top[0]} (${top[1]}×)` : "no parseable invocations"} · never invoked: ${sleepers} · health ${report.score} (${grade(report.score)})`);
@@ -347,7 +349,20 @@ function printHelp(): void {
 `);
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1])}`).href) {
+/**
+ * Run when executed directly. npm installs the bin as a symlink (or a shim on
+ * Windows), so both sides are resolved to their real paths before comparing.
+ */
+function isEntryPoint(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(path.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
   const code = await main(process.argv.slice(2));
   process.exitCode = code;
 }

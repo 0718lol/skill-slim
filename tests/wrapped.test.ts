@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderWrappedHtml } from "../src/core/wrapped.ts";
+import { countUnused, renderWrappedHtml } from "../src/core/wrapped.ts";
 import type { AgentScan, Report, Skill, UsageStat } from "../src/types.ts";
 
 function skill(name: string, source: Skill["source"] = "global"): Skill {
@@ -80,6 +80,29 @@ test("wrapped bill says so honestly when no usage is parseable", () => {
   ]);
   assert.match(html, /没有可解析的调用记录/);
   assert.ok(!html.includes("次 ·"));
+});
+
+test("wrapped counts unused skills with the same rules as the health check", () => {
+  const prev = process.env.SKILL_SLIM_MIN_CONVERSATIONS;
+  delete process.env.SKILL_SLIM_MIN_CONVERSATIONS; // default gate: 5 conversations
+  try {
+    // usage recorded under the folder name, not the frontmatter name → still used
+    const byDir = scan({
+      skills: [{ ...skill("Pretty Name"), dirName: "pretty-name" }],
+      usage: new Map([["pretty-name", { count: 2 }]]),
+    });
+    assert.deepEqual(countUnused([byDir]), { owned: 0, bundled: 0 });
+
+    // too few conversations → no evidence, nothing is called unused
+    assert.deepEqual(countUnused([scan({ conversationCount: 2 })]), { owned: 0, bundled: 0 });
+
+    // plugin skills are counted separately
+    const mixed = scan({ skills: [skill("ghost"), skill("plug", "plugin")], usage: new Map() });
+    assert.deepEqual(countUnused([mixed]), { owned: 1, bundled: 1 });
+  } finally {
+    if (prev === undefined) delete process.env.SKILL_SLIM_MIN_CONVERSATIONS;
+    else process.env.SKILL_SLIM_MIN_CONVERSATIONS = prev;
+  }
 });
 
 test("wrapped bill escapes skill names", () => {

@@ -16,11 +16,14 @@
     "node": ">=22.18"
   },
   "bin": {
-    "skill-slim": "src/cli.ts"
+    "skill-slim": "dist/cli.js"
   },
   "scripts": {
     "start": "node src/cli.ts",
-    "test": "node --test tests/*.test.ts"
+    "build": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.ts",
+    "test:pack": "node scripts/pack-smoke.mjs"
   },
   "keywords": [
     "claude-code",
@@ -34,7 +37,7 @@
     "cli"
   ],
   "files": [
-    "src",
+    "dist",
     "SKILL.md",
     "README.md",
     "LICENSE"

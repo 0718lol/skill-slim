@@ -57,6 +57,10 @@ and safely quarantines the dead weight.
 
 ## Usage
 
+> **npm release pending.** The package is build- and install-tested (`npm run test:pack`)
+> but not on the registry yet — until it is, run it from a clone (below); every `npx
+> skill-slim …` command maps 1:1 to `node src/cli.ts …`.
+
 ```bash
 npx skill-slim                         # health check across all detected agents
 npx skill-slim serve                   # web dashboard, opens in your browser
@@ -100,7 +104,10 @@ score, on a hard always-on token budget, or both:
 - run: npx skill-slim --min-score 85 --max-always-on-tokens 3000
 ```
 
-Published to npm — `npx skill-slim` runs with zero install (Node ≥ 22.18).
+Once published, `npx skill-slim` will run with zero install (Node ≥ 22.18). The npm
+package ships prebuilt JavaScript (`dist/`, built by `npm run build` with Node's own
+type stripper — still zero dependencies), because Node does not run TypeScript from
+`node_modules`.
 
 ## What gets scanned
 
@@ -174,7 +181,8 @@ serves a web dashboard — has a real attack surface, so it gets treated like on
 - [ ] Embedding-based duplicate detection (optional local model)
 - [ ] MCP server tool-definition pricing
 - [ ] GitHub Action that posts a health report on your skills repo
-- [x] `npm i -g skill-slim` / `npx skill-slim` distribution
+- [x] npm-ready packaging: prebuilt `dist/`, pack-and-install smoke test in CI
+- [ ] Publish to npm (`npm i -g skill-slim` / `npx skill-slim`)
 
 ## Evals
 
@@ -183,8 +191,8 @@ The skill's `SKILL.md` is a prompt, so it gets tested like one. [`evals/`](evals
 command routing, safety ordering, metric interpretation and edge states, and fails the run when the
 candidate prompt drops below 90% or any safety case breaks.
 
-The current shipped prompt scores 60–67% on it; the tightened version in
-[`evals/prompts/skill-v1.md`](evals/prompts/skill-v1.md) scores 100%, for +120 always-on tokens per turn.
+The original prompt ([`evals/prompts/skill-v0.md`](evals/prompts/skill-v0.md)) scored 60–67%;
+the shipped `SKILL.md` is now the tightened v1, which scores 100% for +120 always-on tokens per turn.
 
 ```bash
 cd evals && cp .env.example .env    # any OpenAI-compatible endpoint

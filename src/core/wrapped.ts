@@ -1,5 +1,5 @@
 import type { AgentScan, Report } from "../types.ts";
-import { grade } from "./checks.ts";
+import { grade, hasUsageEvidence, usageCount } from "./checks.ts";
 import { fmtUsd } from "../util/tokens.ts";
 
 /**
@@ -8,6 +8,26 @@ import { fmtUsd } from "../util/tokens.ts";
  * cost and per-agent score cards, in the same wood & paper brand as the
  * health report. Zero JS, self-contained, print-friendly.
  */
+
+/**
+ * Never-invoked skills, counted with exactly the rules the health check uses
+ * (name + folder-name lookup, conversation-count evidence gate), so the bill,
+ * the terminal teaser and the report never disagree.
+ */
+export function countUnused(scans: AgentScan[]): { owned: number; bundled: number } {
+  let owned = 0;
+  let bundled = 0;
+  for (const scan of scans) {
+    if (!scan.detected || !hasUsageEvidence(scan)) continue;
+    for (const skill of scan.skills) {
+      if (usageCount(scan, skill) > 0) continue;
+      if (skill.source === "plugin" || skill.source === "extension") bundled++;
+      else owned++;
+    }
+  }
+  return { owned, bundled };
+}
+
 export function renderWrappedHtml(report: Report, scans: AgentScan[]): string {
   const detected = scans.filter((s) => s.detected);
   const totalConversations = detected.reduce((sum, s) => sum + s.conversationCount, 0);
@@ -31,17 +51,7 @@ export function renderWrappedHtml(report: Report, scans: AgentScan[]): string {
   const top = [...totals.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 5);
   const maxCount = top[0]?.[1].count ?? 1;
 
-  let ownedUnused = 0;
-  let bundledUnused = 0;
-  for (const scan of detected) {
-    if (!scan.usageAvailable) continue;
-    for (const skill of scan.skills) {
-      const stat = scan.usage.get(skill.name.toLowerCase());
-      if (stat && stat.count > 0) continue;
-      if (skill.source === "plugin" || skill.source === "extension") bundledUnused++;
-      else ownedUnused++;
-    }
-  }
+  const { owned: ownedUnused, bundled: bundledUnused } = countUnused(detected);
 
   const when = /^(\d{4}-\d{2}-\d{2})/.exec(report.generatedAt)?.[1] ?? report.generatedAt;
 

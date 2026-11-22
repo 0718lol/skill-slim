@@ -92,13 +92,16 @@ Four additions, no rewrite:
 
 ## Adopting v1
 
-`prompts/skill-v1.md` is a drop-in replacement for the shipped `SKILL.md`:
+v1 is now the shipped `SKILL.md` (v0 is kept as the baseline for comparison). For the next
+revision, put the candidate in `prompts/skill-v2.md`, run the harness, and only copy it over
+the root `SKILL.md` once it clears the gate:
 
 ```bash
-cp prompts/skill-v1.md "/Users/wac/WorkBuddy AI/2026-10-16-20-48-58/skill-slim/SKILL.md"
+cp prompts/skill-v2.md ../SKILL.md
 ```
 
-Diff it against `prompts/skill-v0.md` first — the four changes are additive, so a bad hunk is easy to spot.
+The repo test suite checks that the root `SKILL.md` is identical to the newest prompt in
+`prompts/`, so a shipped prompt can't silently drift from the one that was evaluated.
 
 ## Note on dependencies
 

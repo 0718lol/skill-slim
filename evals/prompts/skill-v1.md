@@ -2,7 +2,7 @@
 name: skill-slim
 description: Health check and slim-down for AI coding agent skills, rules, plugins, and context files. Audits loaded skills across Claude Code, Codex CLI, Gemini CLI, Cursor, opencode, Windsurf, Zed, and Copilot CLI, calculates always-on token costs and dollar spend, detects duplicate and never-invoked skills, and safely quarantines dead-weight context.
 metadata:
-  version: 0.3.0
+  version: 0.2.0
   author: 0718lol
   homepage: https://github.com/0718lol/skill-slim
   tags:
@@ -74,7 +74,7 @@ Valid `--agent` ids: `claude-code`, `codex`, `gemini-cli`, `cursor`, `opencode`,
 
 When reporting scan results, translate numbers into consequences:
 
-1. **Health Score (0–100 / Grade A–F)** — driven by description length (< 1,024 chars), body size, duplicate trigger overlap, and usage recency. Below 85 means the router is being fed noise.
+1. **Health Score (0–100 / Grade A–D)** — driven by description length (< 1,024 chars), body size, duplicate trigger overlap, and usage recency. Below 85 means the router is being fed noise.
 2. **Always-On Token Bill** — tokens loaded on *every* turn. Say plainly that this is paid per conversation, not once; give the per-1,000-conversations and monthly figure when present.
 3. **Competing Triggers** — overlapping descriptions that make the model pick the wrong skill. Name the colliding pair, do not just quote the count.
 4. **Recommendations** — dry-run `fix` first, report recoverable tokens, then ask before `--apply`.

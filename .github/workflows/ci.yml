@@ -9,10 +9,17 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ["22.18.0", "24"]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.18.0
+          node-version: ${{ matrix.node }}
       - run: npm test
+      # build, pack, install the tarball into a scratch project, run the bin
+      - run: npm run test:pack
