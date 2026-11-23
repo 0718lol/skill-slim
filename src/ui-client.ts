@@ -174,6 +174,7 @@ export const CLIENT_SCRIPT = String.raw`
   ];
   var DETAIL_ZH_MAP = {
     "Both ship inside plugin bundles; if they fight for triggers, uninstall one of the plugins.": "两者都来自插件包；如果互相抢触发，卸载其中一个插件即可。",
+    "The same skill is loaded twice from two plugin installs; disable or uninstall one copy.": "同一个技能被两份插件安装各加载了一次；停用或卸载其中一份即可。",
     "Both will compete for the same triggers; keep one or merge them.": "两者会争抢相同的触发条件，保留一个或合并。",
     "A bundled skill that never fires; uninstall the plugin if you don't need it.": "插件自带、从未触发的技能；用不到的话可以卸载这个插件。",
     "Its description still rides along in every conversation. Consider quarantining it.": "它的描述仍在每次对话里常驻，建议隔离。",
@@ -190,6 +191,8 @@ export const CLIENT_SCRIPT = String.raw`
   ];
   var NOTE_ZH = [
     [/^found skills in (\d+) plugin bundle\(s\)$/, "在 $1 个插件包中发现技能"],
+    [/^skipped (\d+) cached plugin\(s\) not enabled in config\.toml$/, "跳过了 $1 个只在缓存里、未在 config.toml 启用的插件"],
+    [/^skipped (\d+) installed plugin\(s\) disabled in settings$/, "跳过了 $1 个已安装但在设置里停用的插件"],
     [/^parsed (\d+) session file\(s\) from the last (\d+) days$/, "解析了最近 $2 天的 $1 个会话文件"],
     [/^no session transcripts found in the last (\d+) days$/, "最近 $1 天没有找到会话记录"],
     [/^usage = exec calls reading a SKILL\.md \+ leading slash commands \(best effort\)$/, "用量依据：读取 SKILL.md 的命令调用 + 开头的斜杠命令（尽力估计）"],

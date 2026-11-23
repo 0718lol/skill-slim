@@ -73,14 +73,20 @@ export function runChecks(scan: AgentScan, windowDays = 30): AgentReport {
       const sim = similarity(`${a.name} ${a.description}`, `${b.name} ${b.description}`);
       if (sim >= DUPLICATE_THRESHOLD) {
         const bundled = isBundled(a) && isBundled(b);
+        // the very same skill loaded twice (e.g. one plugin enabled from two
+        // marketplaces) is pure waste the user can fix by disabling one copy
+        const sameSkill =
+          bundled && a.name.toLowerCase() === b.name.toLowerCase() && a.description.trim() === b.description.trim();
         findings.push({
           agent: scan.id,
           kind: "duplicate",
-          severity: bundled ? "info" : "warn",
+          severity: bundled && !sameSkill ? "info" : "warn",
           title: `"${a.name}" overlaps "${b.name}" (${Math.round(sim * 100)}% similar)`,
-          detail: bundled
-            ? "Both ship inside plugin bundles; if they fight for triggers, uninstall one of the plugins."
-            : "Both will compete for the same triggers; keep one or merge them.",
+          detail: sameSkill
+            ? "The same skill is loaded twice from two plugin installs; disable or uninstall one copy."
+            : bundled
+              ? "Both ship inside plugin bundles; if they fight for triggers, uninstall one of the plugins."
+              : "Both will compete for the same triggers; keep one or merge them.",
           paths: [a.path, b.path],
           recoverableTokens: Math.min(estimateTokens(a.description), estimateTokens(b.description)),
         });

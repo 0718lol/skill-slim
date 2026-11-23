@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { AgentId, AgentScan, UsageStat } from "../types.ts";
 import { exists, findFilesDeep, findNamedDirs, listFiles, mtimes } from "../util/fsx.ts";
 import { loadContextFiles, loadPromptFiles, loadSkillDirs } from "./skill-loader.ts";
+import { resolveCodexPlugins } from "./plugins.ts";
 
 const MAX_SESSION_FILES = 3000;
 const MAX_SESSION_FILE_BYTES = 10 * 1024 * 1024;
@@ -46,10 +47,14 @@ export const codexAdapter = {
       };
     }
 
-    const pluginSkillRoots = (await findNamedDirs(path.join(codexDir, "plugins"), "skills", 6)).map((dir) => ({
-      dir,
-      source: "plugin" as const,
-    }));
+    // follow config.toml's enabled plugins; the cache also holds disabled
+    // plugins and other marketplaces' copies that Codex never loads
+    const resolved = await resolveCodexPlugins(codexDir);
+    const pluginDirs = resolved ? resolved.roots : await findNamedDirs(path.join(codexDir, "plugins"), "skills", 6);
+    if (resolved && resolved.skipped > 0) {
+      notes.push(`skipped ${resolved.skipped} cached plugin(s) not enabled in config.toml`);
+    }
+    const pluginSkillRoots = pluginDirs.map((dir) => ({ dir, source: "plugin" as const }));
     const skills = [
       ...(await loadSkillDirs(this.id, [
         { dir: path.join(codexDir, "skills"), source: "global" },
