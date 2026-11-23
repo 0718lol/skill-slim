@@ -18,7 +18,7 @@ export const CLIENT_SCRIPT = String.raw`
   // ---------------------------------------------------------------- i18n --
   var I18N = {
     en: {
-      tagline: "Health check for your AI coding agent's skills · Claude Code, Codex, Gemini CLI, Cursor and 4 more",
+      tagline: "Health check for your AI coding agent's skills · Claude Code, Codex, Gemini CLI, Antigravity and 5 more",
       plan: "Slim-down plan", computing: "Calculating…", rescan: "Re-scan", langSwitch: "中文", langSwitchAria: "切换到中文",
       loading: "Scanning agent configs on this machine", loadingSub: "The first run reads session transcripts and may take a few seconds",
       loadingShort: "Loading…", scanFailed: "Scan failed: {0}", retryHint: "Hit “Re-scan” in the top-right corner to try again",
@@ -64,7 +64,7 @@ export const CLIENT_SCRIPT = String.raw`
       applyFail: "Quarantine failed: {0}"
     },
     zh: {
-      tagline: "给你的 AI 编码 Agent 技能包做体检 · 支持 Claude Code、Codex、Gemini CLI、Cursor 等 8 个 Agent",
+      tagline: "给你的 AI 编码 Agent 技能包做体检 · 支持 Claude Code、Codex、Gemini CLI、Antigravity 等 9 个 Agent",
       plan: "查看瘦身计划", computing: "计算中…", rescan: "重新体检", langSwitch: "EN", langSwitchAria: "Switch to English",
       loading: "正在扫描你电脑上的 Agent 配置", loadingSub: "第一次会读取会话记录，可能需要几秒钟",
       loadingShort: "加载中…", scanFailed: "扫描失败：{0}", retryHint: "可以点右上角「重新体检」再试一次",

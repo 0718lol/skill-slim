@@ -13,7 +13,8 @@ Adding a new agent? Start with [NEW_ADAPTER.md](NEW_ADAPTER.md).
 |---|---|---|---|
 | [Claude Code](claude-code.md) | skills dirs + plugin bundles + `CLAUDE.md` + session JSONL | `src/adapters/claude-code.ts` | `tests/claude-adapter.test.ts` |
 | [Codex CLI](codex.md) | skills/prompts + plugin bundles + `AGENTS.md` + session JSONL | `src/adapters/codex.ts` | `tests/codex-adapter.test.ts` |
-| [Gemini CLI](gemini-cli.md) | skills dirs + `GEMINI.md` + Antigravity SQLite | `src/adapters/gemini-cli.ts` | `tests/gemini-adapter.test.ts` |
+| [Gemini CLI](gemini-cli.md) | skills dirs + `GEMINI.md` + extensions | `src/adapters/gemini-cli.ts` | `tests/gemini-adapter.test.ts` |
+| [Antigravity](antigravity.md) | config skills + installed plugins + builtin skills + `always_on` rules + conversation SQLite | `src/adapters/antigravity.ts` | `tests/gemini-adapter.test.ts` |
 | [Cursor](cursor.md) | `.mdc` rules + ai-tracking SQLite | `src/adapters/cursor.ts` | `tests/cursor-adapter.test.ts` |
 | [opencode](opencode.md) | XDG skills/commands + compat roots + `AGENTS.md` | `src/adapters/opencode.ts` | `tests/new-adapters.test.ts` |
 | [Windsurf](windsurf.md) | `.windsurf`/`.devin` rules & workflows + `~/.codeium/windsurf` | `src/adapters/windsurf.ts` | `tests/new-adapters.test.ts` |

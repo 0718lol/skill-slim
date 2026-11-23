@@ -7,7 +7,7 @@
 </p>
 
 > Health check & slim-down for your AI coding agent's skills, plugins and context files.
-> Works with **Claude Code · Codex CLI · Gemini CLI · Cursor · opencode · Windsurf · Zed · Copilot CLI**.
+> Works with **Claude Code · Codex CLI · Gemini CLI · Antigravity · Cursor · opencode · Windsurf · Zed · Copilot CLI**.
 
 Every skill description and rules file you install rides along in **every** conversation.
 Most setups carry dead weight: duplicated skills, prompts that never fire, oversized rule
@@ -30,8 +30,8 @@ and safely quarantines the dead weight.
 
 ## Features
 
-- 🩺 **Multi-agent** — one scan covers eight agents: Claude Code, Codex CLI,
-  Gemini CLI, Cursor, opencode, Windsurf, Zed and Copilot CLI
+- 🩺 **Multi-agent** — one scan covers nine agents: Claude Code, Codex CLI,
+  Gemini CLI, Antigravity, Cursor, opencode, Windsurf, Zed and Copilot CLI
 - 💸 **Always-on token bill** — every always-loaded byte, converted to tokens and an
   estimated USD cost per 1,000 conversations *and per month at your observed pace*
 - 👯 **Duplicate detection** — flags skills whose descriptions overlap enough to compete
@@ -116,7 +116,8 @@ type stripper — still zero dependencies), because Node does not run TypeScript
 |---|---|---|---|
 | Claude Code | `~/.claude/skills`, `.claude/skills`, plugin bundles | global & project `CLAUDE.md` | ✅ local `~/.claude/projects` transcripts |
 | Codex CLI | `~/.codex/skills`, `~/.codex/prompts`, plugin bundles | global & project `AGENTS.md` | ✅ exec calls reading a `SKILL.md` + leading slash commands |
-| Gemini CLI | `~/.gemini/config/skills`, `~/.gemini/skills` | global & project `GEMINI.md`, extensions | ✅ Antigravity conversation DBs, evidence-gated |
+| Gemini CLI | `~/.gemini/skills`, `.gemini/skills` | global & project `GEMINI.md`, extensions | — not logged locally |
+| Antigravity | `~/.gemini/config/skills`, installed plugins (`config.json`), builtin skills, `.agent/skills` | `always_on` rules, `GEMINI.md` | ✅ `view_file` calls on `SKILL.md` in conversation DBs, evidence-gated |
 | Cursor | non-always-apply `.cursor/rules/*.mdc` | always-apply rules | conversations only (`ai-tracking`); rule usage isn't logged |
 | opencode | `~/.config/opencode/skills`, commands; compat `~/.claude/skills`, `~/.agents/skills` | global & project `AGENTS.md` (CLAUDE.md fallback) | ✅ session SQLite (`part`/`session_message`, evidence-gated) |
 | Windsurf | `.windsurf`/`.devin` rules & workflows, `~/.codeium/windsurf/global_workflows` | `memories/global_rules.md`, `.windsurfrules`, `always_on` rules | — not logged locally |

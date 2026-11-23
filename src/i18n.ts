@@ -96,6 +96,10 @@ export const ZH_RULES: {
     [/^found skills in (\d+) plugin bundle\(s\)$/, "在 $1 个插件包中发现技能"],
     [/^skipped (\d+) cached plugin\(s\) not enabled in config\.toml$/, "跳过了 $1 个只在缓存里、未在 config.toml 启用的插件"],
     [/^skipped (\d+) installed plugin\(s\) disabled in settings$/, "跳过了 $1 个已安装但在设置里停用的插件"],
+    [/^skipped (\d+) plugin folder\(s\) not installed or disabled in config\.json$/, "跳过了 $1 个未在 config.json 安装或已停用的插件目录"],
+    [/^(\d+) on-demand rule\(s\) not billed \(model_decision \/ glob \/ manual\)$/, "$1 条按需加载的规则未计入常驻（model_decision / glob / manual）"],
+    [/^no skill invocations recorded in Gemini CLI's local files — usage unknown$/, "Gemini CLI 本地文件不记录技能调用——用量未知"],
+    [/^usage = view_file \/ read_file calls on SKILL\.md in the step log \(best effort\)$/, "用量依据：会话步骤里对 SKILL.md 的 view_file / read_file 调用（尽力估计）"],
     [/^parsed (\d+) session file\(s\) from the last (\d+) days$/, "解析了最近 $2 天的 $1 个会话文件"],
     [/^no session transcripts found in the last (\d+) days$/, "最近 $1 天没有找到会话记录"],
     [

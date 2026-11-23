@@ -33,8 +33,15 @@ export async function scanSqliteDbs(
   queries: string[],
   conversationsQuery: string | null,
   cutoffMs: number,
-  opts?: { skipMtimeFilter?: boolean },
+  opts?: {
+    skipMtimeFilter?: boolean;
+    /** Custom invocation pattern (global regex, group 1 = skill name). When
+     *  given, only a match proves the skill system is logged — merely seeing
+     *  "SKILL.md" (e.g. in a skill catalog) is not enough. */
+    pattern?: RegExp;
+  },
 ): Promise<SqliteUsage> {
+  const pattern = opts?.pattern ?? SKILL_PATH_RE;
   const usage: SqliteUsage = { hits: new Map(), conversations: 0, sawSkillSystem: false, opened: 0, failed: 0 };
 
   // cumulative databases (a single tracking file updated in place) must not be
@@ -65,8 +72,9 @@ export async function scanSqliteDbs(
           for (const value of Object.values(row)) {
             const text = toSearchable(value);
             if (!text || !text.includes("SKILL.md")) continue;
-            usage.sawSkillSystem = true;
-            for (const match of text.matchAll(SKILL_PATH_RE)) {
+            if (!opts?.pattern) usage.sawSkillSystem = true;
+            for (const match of text.matchAll(pattern)) {
+              usage.sawSkillSystem = true;
               const name = match[1].toLowerCase();
               const prev = usage.hits.get(name) ?? { count: 0 };
               prev.count += 1;

@@ -2,6 +2,7 @@ import type { Adapter, AgentScan, ScanContext } from "../types.ts";
 import { claudeCodeAdapter } from "./claude-code.ts";
 import { codexAdapter } from "./codex.ts";
 import { geminiCliAdapter } from "./gemini-cli.ts";
+import { antigravityAdapter } from "./antigravity.ts";
 import { cursorAdapter } from "./cursor.ts";
 import { opencodeAdapter } from "./opencode.ts";
 import { windsurfAdapter } from "./windsurf.ts";
@@ -12,6 +13,7 @@ export const ADAPTERS: Adapter[] = [
   claudeCodeAdapter,
   codexAdapter,
   geminiCliAdapter,
+  antigravityAdapter,
   cursorAdapter,
   opencodeAdapter,
   windsurfAdapter,
