@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { AgentId, AgentScan, UsageStat } from "../types.ts";
 import { exists, findFilesDeep, findNamedDirs, listFiles, mtimes } from "../util/fsx.ts";
 import { loadContextFiles, loadPromptFiles, loadSkillDirs } from "./skill-loader.ts";
+import { resolveCodexPlugins } from "./plugins.ts";
 
 const MAX_SESSION_FILES = 3000;
 const MAX_SESSION_FILE_BYTES = 10 * 1024 * 1024;
@@ -15,8 +16,9 @@ const MAX_TOTAL_SESSION_BYTES = 500 * 1024 * 1024;
  * Only tool-call *inputs* are scanned — command outputs (ls dumps etc.)
  * overcount wildly.
  */
-const SKILL_PATH_RE = /skills\/([A-Za-z0-9_.-]+)\/SKILL\.md/g;
-const CODEX_SKILL_DIR_RE = /\.codex\/skills\/([A-Za-z0-9_.-]+)/g;
+// separators: `/`, `\` and JSON-escaped `\\` (Windows session logs)
+const SKILL_PATH_RE = /skills[\\/]+([A-Za-z0-9_.-]+)[\\/]+SKILL\.md/g;
+const CODEX_SKILL_DIR_RE = /\.codex[\\/]+skills[\\/]+([A-Za-z0-9_.-]+)/g;
 const SLASH_COMMAND_RE = /^\/([A-Za-z0-9_-]{2,64})(?:\s|$)/;
 
 export const codexAdapter = {
@@ -46,10 +48,14 @@ export const codexAdapter = {
       };
     }
 
-    const pluginSkillRoots = (await findNamedDirs(path.join(codexDir, "plugins"), "skills", 6)).map((dir) => ({
-      dir,
-      source: "plugin" as const,
-    }));
+    // follow config.toml's enabled plugins; the cache also holds disabled
+    // plugins and other marketplaces' copies that Codex never loads
+    const resolved = await resolveCodexPlugins(codexDir);
+    const pluginDirs = resolved ? resolved.roots : await findNamedDirs(path.join(codexDir, "plugins"), "skills", 6);
+    if (resolved && resolved.skipped > 0) {
+      notes.push(`skipped ${resolved.skipped} cached plugin(s) not enabled in config.toml`);
+    }
+    const pluginSkillRoots = pluginDirs.map((dir) => ({ dir, source: "plugin" as const }));
     const skills = [
       ...(await loadSkillDirs(this.id, [
         { dir: path.join(codexDir, "skills"), source: "global" },
@@ -151,7 +157,7 @@ function collectFromLine(line: string, usage: Map<string, UsageStat>): void {
 
   if (payload.type === "custom_tool_call" || payload.type === "function_call") {
     const inputText = typeof payload.input === "string" ? payload.input : JSON.stringify(payload.input ?? "");
-    if (!inputText.includes("SKILL.md") && !inputText.includes(".codex/skills/")) return;
+    if (!inputText.includes("SKILL.md") && !/\.codex[\\/]+skills[\\/]/.test(inputText)) return;
     for (const re of [SKILL_PATH_RE, CODEX_SKILL_DIR_RE]) {
       for (const match of inputText.matchAll(re)) {
         bump(match[1], usage);
@@ -169,7 +175,8 @@ function collectFromLine(line: string, usage: Map<string, UsageStat>): void {
 
 function bump(name: string, usage: Map<string, UsageStat>): void {
   const key = name.toLowerCase();
-  if (!key) return;
+  // ignore hidden directories like `.system` under ~/.codex/skills/.system/
+  if (!key || key.startsWith(".")) return;
   const prev = usage.get(key) ?? { count: 0 };
   prev.count += 1;
   usage.set(key, prev);

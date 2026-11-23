@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { AgentId, AgentScan, UsageStat } from "../types.ts";
 import { exists, findNamedDirs, listDirs, listFiles, mtimes } from "../util/fsx.ts";
 import { loadContextFiles, loadSkillDirs } from "./skill-loader.ts";
+import { resolveClaudePlugins } from "./plugins.ts";
 
 const MAX_SESSION_FILES = 2000;
 const MAX_SESSION_FILE_BYTES = 10 * 1024 * 1024;
@@ -43,10 +44,14 @@ export const claudeCodeAdapter = {
       };
     }
 
-    const pluginSkillRoots = (await findNamedDirs(path.join(claudeDir, "plugins"), "skills", 5)).map((dir) => ({
-      dir,
-      source: "plugin" as const,
-    }));
+    // follow installed_plugins.json + enabledPlugins; plugins/marketplaces/
+    // holds whole catalogs, most of which is not installed
+    const resolved = await resolveClaudePlugins(claudeDir, ctx.cwd);
+    const pluginDirs = resolved ? resolved.roots : await findNamedDirs(path.join(claudeDir, "plugins"), "skills", 5);
+    if (resolved && resolved.skipped > 0) {
+      notes.push(`skipped ${resolved.skipped} installed plugin(s) disabled in settings`);
+    }
+    const pluginSkillRoots = pluginDirs.map((dir) => ({ dir, source: "plugin" as const }));
     // one call so identical paths (e.g. home used as cwd) are deduped across sources
     const skills = await loadSkillDirs(this.id, [
       { dir: path.join(claudeDir, "skills"), source: "global" },

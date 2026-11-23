@@ -1,36 +1,29 @@
 # Gemini CLI
 
 - **Source:** `src/adapters/gemini-cli.ts` · **Test:** `tests/gemini-adapter.test.ts`
-- **Detection:** `~/.gemini` exists.
+- **Detection:** finds a file that only Gemini CLI writes under `~/.gemini`: `settings.json`,
+  `extensions/`, `skills/`, `tmp/`, `oauth_creds.json` or `google_accounts.json`.
+  `~/.gemini` on its own is not enough, because Antigravity keeps its data there
+  too. See [antigravity.md](antigravity.md).
 
 ## Skills
 
-- `~/.gemini/config/skills/<name>/SKILL.md` (newer layout) and
-  `~/.gemini/skills/` (older layout) — both tried, deduped by path
+- `~/.gemini/skills/<name>/SKILL.md` and `<cwd>/.gemini/skills/`
 
 ## Always-on instructions
 
-`~/.gemini/GEMINI.md`, `~/.gemini/config/GEMINI.md`, `<cwd>/GEMINI.md`,
-`<cwd>/.gemini/GEMINI.md`, plus markdown files inside
-`~/.gemini/extensions/<name>/` (≤ 30 files, depth 2) — extension context is
-loaded whenever the extension is enabled.
+`~/.gemini/GEMINI.md`, `<cwd>/GEMINI.md` and `<cwd>/.gemini/GEMINI.md`, plus markdown files
+inside `~/.gemini/extensions/<name>/` (at most 30 files, at most 2 levels deep). An
+extension's context is loaded whenever that extension is enabled.
 
 ## Usage
 
-Antigravity conversation databases `~/.gemini/antigravity/conversations/*.db`
-(SQLite, read-only via `node:sqlite`). Scans `steps.step_payload`,
-`steps.metadata`, `gen_metadata.data` for `skills/<name>/SKILL.md` references.
+Gemini CLI doesn't keep a local log of skill calls that skill-slim can read, so usage is
+reported as unknown. No skill is ever called unused.
 
-**Evidence-gated:** `usageAvailable: true` only when some scanned payload
-actually mentions the skill system. A database that never logs skills reads as
-"usage unknown", never "all unused". Conversation count = rows in
-`trajectory_meta`.
-
-## Edge cases covered by tests
-
-- DB with skill traces → usage parsed, unused skill flagged
-- DB that never mentions skills → gate holds, no unused findings
-- unreadable DBs decrement coverage instead of failing the scan
+> Older versions read Antigravity's conversation databases here and counted every
+> SKILL.md path they found. Those paths were mostly the skill catalog in the prompt,
+> so the counts came out inflated. Antigravity now has its own adapter.
 
 ## Verify locally
 

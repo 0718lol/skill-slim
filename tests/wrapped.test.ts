@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderWrappedHtml } from "../src/core/wrapped.ts";
+import { aggregateUsage, countUnused, renderWrappedHtml } from "../src/core/wrapped.ts";
 import type { AgentScan, Report, Skill, UsageStat } from "../src/types.ts";
 
 function skill(name: string, source: Skill["source"] = "global"): Skill {
@@ -47,8 +47,20 @@ function report(overrides: Partial<Report>): Report {
   };
 }
 
-test("wrapped bill renders leaderboard, sleepers and per-agent chips", () => {
+test("wrapped bill renders in English by default", () => {
   const html = renderWrappedHtml(report({}), [scan({})]);
+  assert.match(html, /<html lang="en">/);
+  assert.match(html, /skills bill/);
+  assert.match(html, /Most-invoked skills/);
+  assert.match(html, /6×/);
+  assert.match(html, /1 of your own skills were never invoked/);
+  assert.match(html, /3 skills · 12 conversations/);
+  assert.ok(!/[\u4e00-\u9fff]/.test(html), "no Chinese in the English bill");
+});
+
+test("wrapped bill renders leaderboard, sleepers and per-agent chips", () => {
+  const html = renderWrappedHtml(report({}), [scan({})], "zh");
+  assert.match(html, /<html lang="zh-CN">/);
   assert.match(html, /技能账单/);
   assert.match(html, /最常调用的技能/);
   assert.match(html, /alpha/);
@@ -68,7 +80,7 @@ test("wrapped bill aggregates the same skill across agents", () => {
     skills: [skill("alpha")],
     conversationCount: 5,
   });
-  const html = renderWrappedHtml(report({}), [claude, codex]);
+  const html = renderWrappedHtml(report({}), [claude, codex], "zh");
   assert.match(html, /alpha/);
   assert.match(html, /12 次/); // 6 + 6 across two agents
   assert.match(html, /claude-code \/ codex/);
@@ -77,9 +89,33 @@ test("wrapped bill aggregates the same skill across agents", () => {
 test("wrapped bill says so honestly when no usage is parseable", () => {
   const html = renderWrappedHtml(report({}), [
     scan({ usage: new Map(), usageAvailable: false, conversationCount: 0 }),
-  ]);
+  ], "zh");
+  assert.match(html, /会话太少/, "no evidence → no sleeper count is claimed");
   assert.match(html, /没有可解析的调用记录/);
   assert.ok(!html.includes("次 ·"));
+});
+
+test("wrapped counts unused skills with the same rules as the health check", () => {
+  const prev = process.env.SKILL_SLIM_MIN_CONVERSATIONS;
+  delete process.env.SKILL_SLIM_MIN_CONVERSATIONS; // default gate: 5 conversations
+  try {
+    // usage recorded under the folder name, not the frontmatter name → still used
+    const byDir = scan({
+      skills: [{ ...skill("Pretty Name"), dirName: "pretty-name" }],
+      usage: new Map([["pretty-name", { count: 2 }]]),
+    });
+    assert.deepEqual(countUnused([byDir]), { owned: 0, bundled: 0 });
+
+    // too few conversations → no evidence, nothing is called unused
+    assert.deepEqual(countUnused([scan({ conversationCount: 2 })]), { owned: 0, bundled: 0 });
+
+    // plugin skills are counted separately
+    const mixed = scan({ skills: [skill("ghost"), skill("plug", "plugin")], usage: new Map() });
+    assert.deepEqual(countUnused([mixed]), { owned: 1, bundled: 1 });
+  } finally {
+    if (prev === undefined) delete process.env.SKILL_SLIM_MIN_CONVERSATIONS;
+    else process.env.SKILL_SLIM_MIN_CONVERSATIONS = prev;
+  }
 });
 
 test("wrapped bill escapes skill names", () => {
@@ -88,4 +124,27 @@ test("wrapped bill escapes skill names", () => {
   ]);
   assert.ok(!html.includes("<img"));
   assert.ok(html.includes("&lt;img src=&quot;x&quot;&gt;&amp;"));
+});
+
+test("wrapped resolves folder-name usage to the frontmatter skill name and aggregates across agents", () => {
+  const agy = scan({
+    id: "antigravity",
+    name: "Antigravity",
+    skills: [{ ...skill("workflow-skill-creator", "plugin"), agent: "antigravity", dirName: "workflow_skill_creator" }],
+    usage: new Map([["workflow_skill_creator", { count: 2 }]]),
+  });
+  const claude = scan({
+    id: "claude-code",
+    name: "Claude Code",
+    skills: [skill("workflow-skill-creator")],
+    usage: new Map([["workflow-skill-creator", { count: 3 }]]),
+  });
+  const agg = aggregateUsage([agy, claude]);
+  assert.equal(agg.length, 1);
+  assert.equal(agg[0].name, "workflow-skill-creator");
+  assert.equal(agg[0].count, 5);
+  assert.deepEqual([...agg[0].agents].sort(), ["antigravity", "claude-code"]);
+  const html = renderWrappedHtml(report({}), [agy, claude], "en");
+  assert.match(html, /workflow-skill-creator/);
+  assert.ok(!html.includes("workflow_skill_creator"));
 });

@@ -66,6 +66,7 @@ test("planFix only proposes never-invoked skills", () => {
   const moves = planFix([scan]);
   assert.equal(moves.length, 1);
   assert.equal(moves[0].from, path.join(tmp, "skills", "stale"));
+  assert.equal(moves[0].to, "claude-code/stale", "plan label uses / on every OS");
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 

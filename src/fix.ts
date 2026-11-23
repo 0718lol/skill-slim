@@ -48,7 +48,9 @@ export function planFix(scans: AgentScan[]): Move[] {
       moves.push({
         agent: scan.id,
         from: skill.path,
-        to: path.join(scan.id, path.basename(skill.path)),
+        // a display/API label, not a filesystem path: always "/" so the plan
+        // reads the same on every OS (applyFix joins it with the real root)
+        to: `${scan.id}/${path.basename(skill.path)}`,
         reason: `never invoked in scan window (${skill.source})`,
         recoverableTokens: estimateTokens(skill.description),
       });

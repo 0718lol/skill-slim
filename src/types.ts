@@ -2,6 +2,7 @@ export type AgentId =
   | "claude-code"
   | "codex"
   | "gemini-cli"
+  | "antigravity"
   | "cursor"
   | "opencode"
   | "windsurf"

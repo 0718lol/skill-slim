@@ -18,7 +18,7 @@ export const CLIENT_SCRIPT = String.raw`
   // ---------------------------------------------------------------- i18n --
   var I18N = {
     en: {
-      tagline: "Health check for your AI coding agent's skills · Claude Code, Codex, Gemini CLI, Cursor and 4 more",
+      tagline: "Health check for your AI coding agent's skills · Claude Code, Codex, Gemini CLI, Antigravity and 5 more",
       plan: "Slim-down plan", computing: "Calculating…", rescan: "Re-scan", langSwitch: "中文", langSwitchAria: "切换到中文",
       loading: "Scanning agent configs on this machine", loadingSub: "The first run reads session transcripts and may take a few seconds",
       loadingShort: "Loading…", scanFailed: "Scan failed: {0}", retryHint: "Hit “Re-scan” in the top-right corner to try again",
@@ -64,7 +64,7 @@ export const CLIENT_SCRIPT = String.raw`
       applyFail: "Quarantine failed: {0}"
     },
     zh: {
-      tagline: "给你的 AI 编码 Agent 技能包做体检 · 支持 Claude Code、Codex、Gemini CLI、Cursor 等 8 个 Agent",
+      tagline: "给你的 AI 编码 Agent 技能包做体检 · 支持 Claude Code、Codex、Gemini CLI、Antigravity 等 9 个 Agent",
       plan: "查看瘦身计划", computing: "计算中…", rescan: "重新体检", langSwitch: "EN", langSwitchAria: "Switch to English",
       loading: "正在扫描你电脑上的 Agent 配置", loadingSub: "第一次会读取会话记录，可能需要几秒钟",
       loadingShort: "加载中…", scanFailed: "扫描失败：{0}", retryHint: "可以点右上角「重新体检」再试一次",
@@ -162,49 +162,17 @@ export const CLIENT_SCRIPT = String.raw`
   }
 
   // ---- Chinese view of backend (English) findings and notes; unknown text passes through ----
-  var SOURCE_ZH = { global: "全局", project: "项目", plugin: "插件", extension: "扩展" };
-  var TITLE_ZH = [
-    [/^Always-on context: ~([\d,]+) tokens$/, function(m){ return "常驻上下文：约 " + m[1] + " tokens"; }],
-    [/^"(.+)" overlaps "(.+)" \((\d+)% similar\)$/, function(m){ return "「" + m[1] + "」与「" + m[2] + "」功能重叠（相似度 " + m[3] + "%）"; }],
-    [/^"(.+)" \((\w+)\) never invoked in the scan window$/, function(m){ return "「" + m[1] + "」（" + (SOURCE_ZH[m[2]] || m[2]) + "）在扫描窗口内从未被调用"; }],
-    [/^"(.+)" has no description$/, function(m){ return "「" + m[1] + "」缺少描述"; }],
-    [/^"(.+)" description is (\d+) chars \(limit (\d+)\)$/, function(m){ return "「" + m[1] + "」描述有 " + m[2] + " 字符（上限 " + m[3] + "）"; }],
-    [/^"(.+)" body is large \((\d+) lines, ~([\d,]+) tok\)$/, function(m){ return "「" + m[1] + "」正文过大（" + m[2] + " 行，约 " + m[3] + " tokens）"; }],
-    [/^"(.+)" lives in a folder named "(.+)"$/, function(m){ return "「" + m[1] + "」所在目录名是「" + m[2] + "」"; }]
-  ];
-  var DETAIL_ZH_MAP = {
-    "Both ship inside plugin bundles; if they fight for triggers, uninstall one of the plugins.": "两者都来自插件包；如果互相抢触发，卸载其中一个插件即可。",
-    "Both will compete for the same triggers; keep one or merge them.": "两者会争抢相同的触发条件，保留一个或合并。",
-    "A bundled skill that never fires; uninstall the plugin if you don't need it.": "插件自带、从未触发的技能；用不到的话可以卸载这个插件。",
-    "Its description still rides along in every conversation. Consider quarantining it.": "它的描述仍在每次对话里常驻，建议隔离。",
-    "Without a description the agent cannot decide when to load this skill.": "没有描述，Agent 无法判断何时加载这个技能。",
-    "Shorten the description; it is loaded into context on every conversation.": "请缩短描述，它在每次对话中都会被加载。",
-    "Move reference material into separate files loaded on demand (progressive disclosure).": "把参考资料拆到按需加载的独立文件里（渐进式披露）。",
-    "Ships inside a plugin bundle; only the plugin author can split it up.": "来自插件包，只有插件作者能拆分，你无需处理。",
-    "Keep the frontmatter name and directory name aligned so usage stats and triggers stay unambiguous.": "让 frontmatter 里的 name 与目录名保持一致，用量统计和触发才不会混淆。"
-  };
-  var DETAIL_ZH = [
-    [/^instructions ~([\d,]+) tok \+ (\d+) skill descriptions ~([\d,]+) tok(?:; heaviest: (.+))?$/, function(m){
-      return "指令文件约 " + m[1] + " tok + " + m[2] + " 个技能描述约 " + m[3] + " tok" + (m[4] ? "；最重的：" + m[4] : "");
-    }]
-  ];
-  var NOTE_ZH = [
-    [/^found skills in (\d+) plugin bundle\(s\)$/, "在 $1 个插件包中发现技能"],
-    [/^parsed (\d+) session file\(s\) from the last (\d+) days$/, "解析了最近 $2 天的 $1 个会话文件"],
-    [/^no session transcripts found in the last (\d+) days$/, "最近 $1 天没有找到会话记录"],
-    [/^usage = exec calls reading a SKILL\.md \+ leading slash commands \(best effort\)$/, "用量依据：读取 SKILL.md 的命令调用 + 开头的斜杠命令（尽力估计）"],
-    [/^usage = SKILL\.md path references in (conversation payloads|session parts|thread payloads) \(best effort\)$/, "用量依据：会话记录里对 SKILL.md 路径的引用（尽力估计）"],
-    [/^usage = (.+) \(best effort\)$/, "用量依据：$1（尽力估计）"],
-    [/^scanned (\d+) (conversation|session) database\(s\)(.*)$/, "扫描了 $1 个会话数据库$3"],
-    [/^no skill invocations recorded in .+ — usage unknown$/, "本地会话里没有技能调用记录，用量未知"],
-    [/^no local skill store — only instruction files are billed$/, "没有本地技能目录，只统计指令文件"],
-    [/^custom prompts are counted as skills$/, "自定义 prompt 也按技能计"],
-    [/^only (\d+) conversation\(s\) in the window — unused-skill detection needs (\d+)\+, skipped for now$/, "窗口内只有 $1 次会话，判断「从未使用」至少需要 $2 次，暂不判断、也不建议隔离"]
-  ];
+  // rules live in src/i18n.ts (shared with the --html report and wrapped
+  // bill); the page inlines them as SKILL_SLIM_ZH before this script
+  var ZH = window.SKILL_SLIM_ZH || { sources: {}, title: [], detailMap: {}, detail: [], note: [] };
+  function compile(list){ return list.map(function(r){ return [new RegExp(r[0], r[1]), r[2]]; }); }
+  var TITLE_ZH = compile(ZH.title), DETAIL_ZH = compile(ZH.detail), NOTE_ZH = compile(ZH.note);
+  var DETAIL_ZH_MAP = ZH.detailMap;
   function applyRules(s, rules){
     for (var i=0;i<rules.length;i++){
-      var m = rules[i][0].exec(s);
-      if (m) return typeof rules[i][1] === "function" ? rules[i][1](m) : s.replace(rules[i][0], rules[i][1]);
+      if (rules[i][0].test(s)){
+        return s.replace(rules[i][0], rules[i][1]).replace(/\{src:(\w+)\}/g, function(_, k){ return ZH.sources[k] || k; });
+      }
     }
     return s;
   }

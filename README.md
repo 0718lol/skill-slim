@@ -7,7 +7,7 @@
 </p>
 
 > Health check & slim-down for your AI coding agent's skills, plugins and context files.
-> Works with **Claude Code · Codex CLI · Gemini CLI · Cursor · opencode · Windsurf · Zed · Copilot CLI**.
+> Works with **Claude Code · Codex CLI · Gemini CLI · Antigravity · Cursor · opencode · Windsurf · Zed · Copilot CLI**.
 
 Every skill description and rules file you install rides along in **every** conversation.
 Most setups carry dead weight: duplicated skills, prompts that never fire, oversized rule
@@ -30,8 +30,8 @@ and safely quarantines the dead weight.
 
 ## Features
 
-- 🩺 **Multi-agent** — one scan covers eight agents: Claude Code, Codex CLI,
-  Gemini CLI, Cursor, opencode, Windsurf, Zed and Copilot CLI
+- 🩺 **Multi-agent** — one scan covers nine agents: Claude Code, Codex CLI,
+  Gemini CLI, Antigravity, Cursor, opencode, Windsurf, Zed and Copilot CLI
 - 💸 **Always-on token bill** — every always-loaded byte, converted to tokens and an
   estimated USD cost per 1,000 conversations *and per month at your observed pace*
 - 👯 **Duplicate detection** — flags skills whose descriptions overlap enough to compete
@@ -57,6 +57,10 @@ and safely quarantines the dead weight.
 
 ## Usage
 
+> **npm release pending.** The package is build- and install-tested (`npm run test:pack`)
+> but not on the registry yet — until it is, run it from a clone (below); every `npx
+> skill-slim …` command maps 1:1 to `node src/cli.ts …`.
+
 ```bash
 npx skill-slim                         # health check across all detected agents
 npx skill-slim serve                   # web dashboard, opens in your browser
@@ -67,6 +71,7 @@ npx skill-slim restore                 # list quarantined skills
 npx skill-slim restore <name>          # move one back to its original location
 npx skill-slim --json                  # machine-readable output
 npx skill-slim --html report.html      # shareable HTML report card
+npx skill-slim --html r.html --lang zh # report / wrapped bill in Chinese (default: system locale)
 npx skill-slim --agent claude-code,codex --days 14
 npx skill-slim --verbose               # expand collapsed informational findings
 ```
@@ -100,7 +105,10 @@ score, on a hard always-on token budget, or both:
 - run: npx skill-slim --min-score 85 --max-always-on-tokens 3000
 ```
 
-Published to npm — `npx skill-slim` runs with zero install (Node ≥ 22.18).
+Once published, `npx skill-slim` will run with zero install (Node ≥ 22.18). The npm
+package ships prebuilt JavaScript (`dist/`, built by `npm run build` with Node's own
+type stripper — still zero dependencies), because Node does not run TypeScript from
+`node_modules`.
 
 ## What gets scanned
 
@@ -108,7 +116,8 @@ Published to npm — `npx skill-slim` runs with zero install (Node ≥ 22.18).
 |---|---|---|---|
 | Claude Code | `~/.claude/skills`, `.claude/skills`, plugin bundles | global & project `CLAUDE.md` | ✅ local `~/.claude/projects` transcripts |
 | Codex CLI | `~/.codex/skills`, `~/.codex/prompts`, plugin bundles | global & project `AGENTS.md` | ✅ exec calls reading a `SKILL.md` + leading slash commands |
-| Gemini CLI | `~/.gemini/config/skills`, `~/.gemini/skills` | global & project `GEMINI.md`, extensions | ✅ Antigravity conversation DBs, evidence-gated |
+| Gemini CLI | `~/.gemini/skills`, `.gemini/skills` | global & project `GEMINI.md`, extensions | — not logged locally |
+| Antigravity | `~/.gemini/config/skills`, installed plugins (`config.json`), `.agent/skills` | always-on rules (`always_on` / standalone `AGENTS.md`), `GEMINI.md` | ✅ `view_file` / `read_file` calls on `SKILL.md` in conversation DBs, evidence-gated |
 | Cursor | non-always-apply `.cursor/rules/*.mdc` | always-apply rules | conversations only (`ai-tracking`); rule usage isn't logged |
 | opencode | `~/.config/opencode/skills`, commands; compat `~/.claude/skills`, `~/.agents/skills` | global & project `AGENTS.md` (CLAUDE.md fallback) | ✅ session SQLite (`part`/`session_message`, evidence-gated) |
 | Windsurf | `.windsurf`/`.devin` rules & workflows, `~/.codeium/windsurf/global_workflows` | `memories/global_rules.md`, `.windsurfrules`, `always_on` rules | — not logged locally |
@@ -174,7 +183,8 @@ serves a web dashboard — has a real attack surface, so it gets treated like on
 - [ ] Embedding-based duplicate detection (optional local model)
 - [ ] MCP server tool-definition pricing
 - [ ] GitHub Action that posts a health report on your skills repo
-- [x] `npm i -g skill-slim` / `npx skill-slim` distribution
+- [x] npm-ready packaging: prebuilt `dist/`, pack-and-install smoke test in CI
+- [ ] Publish to npm (`npm i -g skill-slim` / `npx skill-slim`)
 
 ## Evals
 
@@ -183,8 +193,8 @@ The skill's `SKILL.md` is a prompt, so it gets tested like one. [`evals/`](evals
 command routing, safety ordering, metric interpretation and edge states, and fails the run when the
 candidate prompt drops below 90% or any safety case breaks.
 
-The current shipped prompt scores 60–67% on it; the tightened version in
-[`evals/prompts/skill-v1.md`](evals/prompts/skill-v1.md) scores 100%, for +120 always-on tokens per turn.
+The original prompt ([`evals/prompts/skill-v0.md`](evals/prompts/skill-v0.md)) scored 60–67%;
+the shipped `SKILL.md` is now the tightened v1, which scores 100% for +120 always-on tokens per turn.
 
 ```bash
 cd evals && cp .env.example .env    # any OpenAI-compatible endpoint

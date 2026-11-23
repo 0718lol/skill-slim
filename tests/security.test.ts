@@ -14,6 +14,7 @@ import { startServer } from "../src/server.ts";
 import { loadSkillDirs } from "../src/adapters/skill-loader.ts";
 import { parseFrontmatter } from "../src/util/frontmatter.ts";
 import { SKILL_PATH_RE } from "../src/util/sqlite-scan.ts";
+import { ANTIGRAVITY_SKILL_CALL_RE } from "../src/adapters/antigravity.ts";
 import { MAX_FILE_BYTES } from "../src/util/fsx.ts";
 
 /**
@@ -40,7 +41,9 @@ const DESC_PAYLOAD = 'deploys <img src=x onerror=alert(1)> services & "quotes" <
 // dir names with a closing-tag sequence (</) are unreliable on some filesystem
 // sandboxes, so the hostile dir name uses an open tag — the escaping requirement
 // under test is identical
-const DIRNAME_PAYLOAD = "dir-with-<b>html";
+// Windows forbids < > " in file names; & is still HTML-significant and escaped by esc()
+const DIRNAME_PAYLOAD = process.platform === "win32" ? "dir-with-&amp-'quote" : "dir-with-<b>html";
+const DIRNAME_ESCAPED = process.platform === "win32" ? "dir-with-&amp;amp-'quote" : "dir-with-&lt;b&gt;html";
 
 function tempHome(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -113,7 +116,8 @@ test("health report escapes hostile skill names, descriptions and dir names", as
     assert.doesNotMatch(html, /<img\b/);
     assert.ok(html.includes("&lt;script&gt;"), "script payload must appear only in escaped form");
     assert.ok(html.includes("&lt;img src=x onerror=alert(2)&gt;"), "img payload must appear only in escaped form");
-    assert.ok(html.includes(`&lt;b&gt;html`), "hostile dir name must appear only in escaped form");
+    assert.ok(html.includes(DIRNAME_ESCAPED), "hostile dir name must appear only in escaped form");
+    assert.ok(!html.includes(DIRNAME_PAYLOAD), "raw hostile dir name must not appear unescaped");
     // the payloads actually reached findings — this test guards a real flow
     const findings = report.agents.flatMap((a) => a.findings);
     assert.ok(findings.some((f) => f.title.includes(NAME_PAYLOAD)));
@@ -364,6 +368,14 @@ test("skill-path regex stays linear on adversarial input", () => {
   const hits = [...adversarial.matchAll(SKILL_PATH_RE)];
   assert.ok(Date.now() - start < 2000, "SKILL_PATH_RE must not backtrack catastrophically");
   assert.equal(hits.length, 2000);
+
+  const agyAdversarial =
+    'read_file {"a":"' + "/skills/".repeat(25_000) + '"} ' +
+    'read_file {"EndLine":10,"Path":"/a/skills/ok/SKILL.md"} '.repeat(500);
+  const agyStart = Date.now();
+  const agyHits = [...agyAdversarial.matchAll(ANTIGRAVITY_SKILL_CALL_RE)];
+  assert.ok(Date.now() - agyStart < 2000, "ANTIGRAVITY_SKILL_CALL_RE must stay linear");
+  assert.equal(agyHits.length, 500);
 });
 
 // ---------------------------------------------------------------------------

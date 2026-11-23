@@ -1,3 +1,4 @@
+import { zhRulesForClient } from "./i18n.ts";
 import { CLIENT_SCRIPT } from "./ui-client.ts";
 import { VERSION } from "./version.ts";
 
@@ -219,7 +220,7 @@ export function renderPage(): string {
 </main>
 <footer>skill-slim v${VERSION} · <span id="footer-text"></span></footer>
 <div id="toast" role="status" aria-live="polite"></div>
-<script>${CLIENT_SCRIPT}</script>
+<script>window.SKILL_SLIM_ZH = ${zhRulesForClient()};${CLIENT_SCRIPT}</script>
 </body>
 </html>`;
 }

@@ -15,8 +15,9 @@ export interface SqliteUsage {
   failed: number;
 }
 
-/** `skills/<name>/SKILL.md` reference — the shared invocation proxy. */
-export const SKILL_PATH_RE = /\bskills\/([A-Za-z0-9_.-]+)\/SKILL\.md\b/g;
+/** `skills/<name>/SKILL.md` reference — the shared invocation proxy. Accepts
+ *  `/`, `\` and JSON-escaped `\\` separators so Windows paths count too. */
+export const SKILL_PATH_RE = /\bskills[\\/]+([A-Za-z0-9_.-]+)[\\/]+SKILL\.md\b/g;
 const MAX_DB_FILES = 500;
 const MAX_ROWS_PER_QUERY = 50_000;
 const MAX_VALUE_BYTES = 20 * 1024 * 1024;
@@ -33,8 +34,17 @@ export async function scanSqliteDbs(
   queries: string[],
   conversationsQuery: string | null,
   cutoffMs: number,
-  opts?: { skipMtimeFilter?: boolean },
+  opts?: {
+    skipMtimeFilter?: boolean;
+    /** Custom invocation pattern (global regex, group 1 = skill name). When
+     *  given, only a match proves the skill system is logged — merely seeing
+     *  "SKILL.md" (e.g. in a skill catalog) is not enough. */
+    pattern?: RegExp;
+    /** Optional filter/normalizer for pattern matches; return null to ignore a match. */
+    extractName?: (match: RegExpMatchArray) => string | null;
+  },
 ): Promise<SqliteUsage> {
+  const pattern = opts?.pattern ?? SKILL_PATH_RE;
   const usage: SqliteUsage = { hits: new Map(), conversations: 0, sawSkillSystem: false, opened: 0, failed: 0 };
 
   // cumulative databases (a single tracking file updated in place) must not be
@@ -65,9 +75,12 @@ export async function scanSqliteDbs(
           for (const value of Object.values(row)) {
             const text = toSearchable(value);
             if (!text || !text.includes("SKILL.md")) continue;
-            usage.sawSkillSystem = true;
-            for (const match of text.matchAll(SKILL_PATH_RE)) {
-              const name = match[1].toLowerCase();
+            if (!opts?.pattern) usage.sawSkillSystem = true;
+            for (const match of text.matchAll(pattern)) {
+              const extracted = opts?.extractName ? opts.extractName(match) : match[1];
+              if (!extracted) continue;
+              usage.sawSkillSystem = true;
+              const name = extracted.toLowerCase();
               const prev = usage.hits.get(name) ?? { count: 0 };
               prev.count += 1;
               usage.hits.set(name, prev);

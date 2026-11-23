@@ -21,6 +21,26 @@ export async function loadSkillDirs(
   const skills: Skill[] = [];
   const seen = new Set<string>();
   for (const { dir, source } of roots) {
+    // Some plugins ship a single root skill directly at `<plugin>/skills/SKILL.md`
+    // alongside optional sub-skills in `<plugin>/skills/<name>/SKILL.md`.
+    if (source === "plugin") {
+      const rootFile = path.join(dir, skillFile);
+      if (!seen.has(rootFile)) {
+        const raw = await readFileSafe(rootFile);
+        if (raw !== null) {
+          seen.add(rootFile);
+          const { data, body } = parseFrontmatter(raw);
+          skills.push({
+            agent,
+            name: data.name || path.basename(path.dirname(dir)),
+            description: data.description || "",
+            body,
+            path: rootFile,
+            source,
+          });
+        }
+      }
+    }
     for (const skillDir of await listDirs(dir)) {
       if (seen.has(skillDir)) continue;
       seen.add(skillDir);

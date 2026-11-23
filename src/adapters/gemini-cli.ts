@@ -1,25 +1,35 @@
 import * as path from "node:path";
-import type { AgentId, AgentScan, UsageStat } from "../types.ts";
+import type { AgentId, AgentScan } from "../types.ts";
 import { exists, listDirs, listFiles, readFileSafe } from "../util/fsx.ts";
-import { scanSqliteDbs } from "../util/sqlite-scan.ts";
 import { loadContextFiles, loadSkillDirs } from "./skill-loader.ts";
 
 const MAX_EXTENSION_CONTEXT_FILES = 30;
 
+/**
+ * Files only Gemini CLI writes. ~/.gemini alone is not proof: Antigravity
+ * keeps its data there too (~/.gemini/antigravity, ~/.gemini/config) and is
+ * scanned by its own adapter. GEMINI.md is not a marker either — Antigravity
+ * reads ~/.gemini/GEMINI.md as its global rules file.
+ */
+const GEMINI_CLI_MARKERS = ["settings.json", "extensions", "skills", "tmp", "oauth_creds.json", "google_accounts.json"];
+
 export const geminiCliAdapter = {
   id: "gemini-cli" as AgentId,
   name: "Gemini CLI",
-  hint: "~/.gemini",
+  hint: "~/.gemini (settings.json, extensions/, skills/)",
 
   async detect(ctx: { home: string }): Promise<boolean> {
-    return exists(path.join(ctx.home, ".gemini"));
+    const geminiDir = path.join(ctx.home, ".gemini");
+    for (const marker of GEMINI_CLI_MARKERS) {
+      if (await exists(path.join(geminiDir, marker))) return true;
+    }
+    return false;
   },
 
   async scan(ctx: { home: string; cwd: string; windowDays: number }): Promise<AgentScan> {
     const geminiDir = path.join(ctx.home, ".gemini");
     const notes: string[] = [];
-    const detected = await exists(geminiDir);
-    if (!detected) {
+    if (!(await this.detect(ctx))) {
       return {
         id: this.id,
         name: this.name,
@@ -33,15 +43,13 @@ export const geminiCliAdapter = {
       };
     }
 
-    // newer layouts keep skills under config/, older ones at the top level
     const skills = await loadSkillDirs(this.id, [
-      { dir: path.join(geminiDir, "config", "skills"), source: "global" },
       { dir: path.join(geminiDir, "skills"), source: "global" },
+      { dir: path.join(ctx.cwd, ".gemini", "skills"), source: "project" },
     ]);
 
     const instructions = await loadContextFiles(this.id, [
       { file: path.join(geminiDir, "GEMINI.md"), label: "global GEMINI.md" },
-      { file: path.join(geminiDir, "config", "GEMINI.md"), label: "global config/GEMINI.md" },
       { file: path.join(ctx.cwd, "GEMINI.md"), label: "project GEMINI.md" },
       { file: path.join(ctx.cwd, ".gemini", "GEMINI.md"), label: "project .gemini/GEMINI.md" },
     ]);
@@ -68,8 +76,9 @@ export const geminiCliAdapter = {
       notes.push(`${extDirs.length} extension(s), ${extFiles} context file(s) counted`);
     }
 
-    const { usage, usageAvailable, conversationCount, notes: usageNotes } = await parseUsage(geminiDir, ctx.windowDays);
-    notes.push(...usageNotes);
+    // Gemini CLI keeps no skill-invocation log we can read, so usage stays
+    // unknown and no skill is ever called unused.
+    notes.push("no skill invocations recorded in Gemini CLI's local files — usage unknown");
 
     return {
       id: this.id,
@@ -77,55 +86,13 @@ export const geminiCliAdapter = {
       detected: true,
       skills,
       instructions,
-      usage,
-      usageAvailable,
-      conversationCount,
+      usage: new Map(),
+      usageAvailable: false,
+      conversationCount: 0,
       notes,
     };
   },
 };
-
-/**
- * Gemini usage evidence lives in Antigravity conversation databases
- * (~/.gemini/antigravity/conversations/*.db). Counts are gated on seeing the
- * skill system referenced at all — these schemas log skill loads only
- * sometimes, and an all-zero scan must read as "unknown", not "unused".
- */
-async function parseUsage(
-  geminiDir: string,
-  windowDays: number,
-): Promise<{ usage: Map<string, UsageStat>; usageAvailable: boolean; conversationCount: number; notes: string[] }> {
-  const notes: string[] = [];
-  const conversationsDir = path.join(geminiDir, "antigravity", "conversations");
-  const dbFiles = [...(await listFiles(conversationsDir, ".db"))];
-  if (dbFiles.length === 0) {
-    notes.push("no Antigravity conversation databases found");
-    return { usage: new Map(), usageAvailable: false, conversationCount: 0, notes };
-  }
-
-  const result = await scanSqliteDbs(
-    dbFiles,
-    ["SELECT step_payload, metadata FROM steps", "SELECT data FROM gen_metadata"],
-    "SELECT COUNT(*) AS c FROM trajectory_meta",
-    Date.now() - windowDays * 24 * 3600 * 1000,
-  );
-
-  if (result.opened === 0) {
-    notes.push(`could not open any of ${dbFiles.length} conversation database(s)`);
-    return { usage: new Map(), usageAvailable: false, conversationCount: 0, notes };
-  }
-
-  notes.push(
-    `scanned ${result.opened} conversation database(s)` +
-      (result.failed > 0 ? ` (${result.failed} unreadable)` : ""),
-  );
-  if (!result.sawSkillSystem) {
-    notes.push("no skill invocations recorded in local conversations — usage unknown");
-    return { usage: new Map(), usageAvailable: false, conversationCount: result.conversations, notes };
-  }
-  notes.push("usage = SKILL.md path references in conversation payloads (best effort)");
-  return { usage: result.hits, usageAvailable: true, conversationCount: result.conversations, notes };
-}
 
 async function collectMarkdown(dir: string, maxDepth: number): Promise<string[]> {
   if (maxDepth <= 0) return [];

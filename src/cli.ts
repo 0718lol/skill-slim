@@ -1,15 +1,24 @@
 #!/usr/bin/env node
 import "./util/quiet-warnings.ts";
+import { realpathSync } from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { ADAPTERS } from "./adapters/index.ts";
-import { evaluateGates, grade, runChecks } from "./core/checks.ts";
+import { evaluateGates, grade, hasUsageEvidence, runChecks } from "./core/checks.ts";
 import { collect, getHome } from "./core/collect.ts";
 import { renderHtml, renderTerminal, toJson, writeReportFile } from "./core/report.ts";
-import { renderWrappedHtml } from "./core/wrapped.ts";
+import { aggregateUsage, countUnused, renderWrappedHtml } from "./core/wrapped.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
 import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
 import { VERSION } from "./version.ts";
+import { detectLang, LANGS, parseLang, type Lang } from "./i18n.ts";
+
+// `skill-slim | head` closes the pipe early; that is a normal exit, not a crash
+process.stdout.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EPIPE") process.exit(0);
+  throw err;
+});
 
 interface CliOptions {
   command: string;
@@ -18,6 +27,7 @@ interface CliOptions {
   days: number;
   json: boolean;
   html?: string;
+  lang?: Lang;
   apply: boolean;
   verbose: boolean;
   minScore?: number;
@@ -77,7 +87,7 @@ export async function main(argv: string[]): Promise<number> {
     console.log(renderTerminal(report, { verbose: opts.verbose }));
   }
   if (opts.html) {
-    writeReportFile(opts.html, renderHtml(report));
+    writeReportFile(opts.html, renderHtml(report, detectLang(opts.lang)));
     if (!opts.json) console.log(`HTML report written to ${opts.html}`);
   }
   const failures = evaluateGates(report, { minScore: opts.minScore, maxAlwaysOnTokens: opts.maxAlwaysOnTokens });
@@ -96,28 +106,17 @@ async function runWrapped(
 ): Promise<number> {
   const { report, scans } = collected;
   const file = opts.html ?? "skill-slim-wrapped.html";
-  writeReportFile(file, renderWrappedHtml(report, scans));
+  writeReportFile(file, renderWrappedHtml(report, scans, detectLang(opts.lang)));
 
   // terminal teaser: top skill + sleepers + score, the rest lives in the file
   const detected = scans.filter((s) => s.detected);
-  const totals = new Map<string, number>();
-  for (const scan of detected) {
-    for (const [name, stat] of scan.usage) {
-      if (stat.count > 0) totals.set(name, (totals.get(name) ?? 0) + stat.count);
-    }
-  }
-  const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
-  let sleepers = 0;
-  for (const scan of detected) {
-    if (!scan.usageAvailable) continue;
-    for (const skill of scan.skills) {
-      const stat = scan.usage.get(skill.name.toLowerCase());
-      if (!stat || stat.count === 0) sleepers++;
-    }
-  }
+  const top = aggregateUsage(detected)[0];
+  const evidence = detected.some((s) => hasUsageEvidence(s));
+  const unused = countUnused(detected);
+  const sleepers = evidence ? String(unused.owned + unused.bundled) : "–";
 
   console.log(`\n  skill-slim wrapped · last ${opts.days} days`);
-  console.log(`  ${top ? `most used: ${top[0]} (${top[1]}×)` : "no parseable invocations"} · never invoked: ${sleepers} · health ${report.score} (${grade(report.score)})`);
+  console.log(`  ${top ? `most used: ${top.name} (${top.count}×)` : "no parseable invocations"} · never invoked: ${sleepers} · health ${report.score} (${grade(report.score)})`);
   console.log(`  ✓ skill bill written to ${file} — open it and share\n`);
   return 0;
 }
@@ -265,6 +264,11 @@ function parseArgs(argv: string[]): CliOptions {
       opts.json = true;
     } else if (arg === "--html") {
       opts.html = argv[++i] ?? "skill-slim-report.html";
+    } else if (arg === "--lang") {
+      const value = argv[++i];
+      const lang = parseLang(value);
+      if (!lang) throw new Error(`--lang expects one of: ${LANGS.join(", ")}`);
+      opts.lang = lang;
     } else if (arg === "--apply") {
       opts.apply = true;
     } else if (arg === "--verbose") {
@@ -323,11 +327,13 @@ function printHelp(): void {
     agents    list supported agents and whether they were detected
 
   options:
-    --agent <a,b>   only scan these agents (claude-code, codex, gemini-cli, cursor,
+    --agent <a,b>   only scan these agents (claude-code, codex, gemini-cli, antigravity, cursor,
                     opencode, windsurf, zed, copilot-cli)
     --days <n>      usage window in days (default 30)
     --json          machine-readable JSON output
     --html <file>   also write a shareable HTML report
+    --lang <en|zh>  language of --html / wrapped files (default: SKILL_SLIM_LANG,
+                    then your system locale; anything but Chinese gets English)
     --apply         with fix: actually move directories
     --verbose       show informational findings hidden by default
     --min-score <n> exit with code 1 when the overall score is below n (CI)
@@ -347,7 +353,20 @@ function printHelp(): void {
 `);
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1])}`).href) {
+/**
+ * Run when executed directly. npm installs the bin as a symlink (or a shim on
+ * Windows), so both sides are resolved to their real paths before comparing.
+ */
+function isEntryPoint(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(path.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
   const code = await main(process.argv.slice(2));
   process.exitCode = code;
 }

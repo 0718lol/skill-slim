@@ -1,5 +1,5 @@
 import * as http from "node:http";
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { collect, getHome } from "./core/collect.ts";
 import { renderPage } from "./ui.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
@@ -227,9 +227,21 @@ function readJsonBody(
   });
 }
 
+/**
+ * Command that opens `url` in the default browser. On Windows `start` is a
+ * cmd built-in that treats its first quoted argument as the window title, so
+ * an empty title must come first or only a blank console window appears.
+ * Arguments are passed as an array (no shell string interpolation).
+ */
+export function browserCommand(url: string, platform: NodeJS.Platform = process.platform): [string, string[]] {
+  if (platform === "darwin") return ["open", [url]];
+  if (platform === "win32") return ["cmd", ["/c", "start", "", url]];
+  return ["xdg-open", [url]];
+}
+
 function openBrowser(url: string): void {
-  const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
-  exec(`${cmd} "${url}"`, () => {
+  const [cmd, args] = browserCommand(url);
+  execFile(cmd, args, { windowsHide: true }, () => {
     /* browser opening is best-effort; the URL is printed anyway */
   });
 }

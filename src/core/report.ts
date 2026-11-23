@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import type { AgentReport, Finding, Report } from "../types.ts";
 import { grade } from "./checks.ts";
 import { fmtUsd } from "../util/tokens.ts";
+import { fmt, translate, type Lang } from "../i18n.ts";
 
 const SEVERITY_ICON: Record<Finding["severity"], string> = {
   error: "✖",
@@ -97,15 +98,79 @@ export function toJson(report: Report): string {
   return JSON.stringify(report, null, 2);
 }
 
-export function renderHtml(report: Report): string {
+const HTML_COPY = {
+  en: {
+    htmlLang: "en",
+    title: "skill-slim · health report",
+    logoSuffix: "health report",
+    when: "{0} · {1}-day window · {2}/{3} agents detected",
+    heroTitle: "Overall health: {0}",
+    heroSub: "Every conversation carries ~{0} tokens of always-on context;<br>at your current pace that is about {1} a month.",
+    tileTokens: "Always-on tokens", tileTokensSub: "every conversation",
+    tilePer1k: "Per 1k conversations", tilePer1kSub: "always-on bill",
+    tileMonthly: "Monthly cost", tileMonthlySub: "at observed pace",
+    tileRecover: "Recoverable", tileRecoverSub: "tokens",
+    section: "Agent results",
+    footer1: "Estimates: token counts are a heuristic (CJK ≈ 1 token/char, other text ≈ 3.8 chars/token), priced at $3 per 1M input tokens.",
+    footer2: "Next: <code>skill-slim fix</code> previews the slim-down (dry-run by default) · <code>skill-slim restore</code> brings quarantined skills back · generated locally by skill-slim, no network requests.",
+    ring: "health",
+    skipped: "not installed, skipped",
+    skills: "{0} skills", skillsOne: "{0} skill",
+    instr: "{0} instruction files", instrOne: "{0} instruction file",
+    alwaysOn: "~{0} tokens always-on",
+    per1k: "{0} / 1k conversations",
+    monthly: "{0} / month · {1} conversations", monthlyOne: "{0} / month · {1} conversation",
+    allClear: "✓ All clear — no findings",
+    noAction: "✓ Nothing needs your attention",
+    infoMore: "Show {0} tips (plugin-bundled skills etc.)", infoMoreOne: "Show 1 tip (plugin-bundled skills etc.)",
+    save: "Recoverable ~{0} tokens",
+  },
+  zh: {
+    htmlLang: "zh-CN",
+    title: "skill-slim · 体检报告",
+    logoSuffix: "体检报告",
+    when: "{0} · 统计窗口 {1} 天 · 检出 {2}/{3} 个 Agent",
+    heroTitle: "综合健康分 · {0} 级",
+    heroSub: "每轮对话都要携带的常驻上下文共 ~{0} tokens；<br>按当前用量节奏，每月约 {1}。",
+    tileTokens: "常驻 tokens", tileTokensSub: "每轮对话",
+    tilePer1k: "每千次对话", tilePer1kSub: "常驻账单",
+    tileMonthly: "每月成本", tileMonthlySub: "按观测节奏",
+    tileRecover: "可回收", tileRecoverSub: "tokens",
+    section: "各 Agent 体检结果",
+    footer1: "估算说明：token 为启发式计数（CJK ≈ 1 token/字符，其余 ≈ 3.8 字符/token），成本按 $3/M input tokens 计。",
+    footer2: "下一步：<code>skill-slim fix</code> 预览瘦身方案（默认 dry-run）· <code>skill-slim restore</code> 恢复被隔离的技能 · 报告由 skill-slim 在本地生成，无任何网络请求。",
+    ring: "健康分",
+    skipped: "未安装，已跳过",
+    skills: "{0} 个技能", skillsOne: "{0} 个技能",
+    instr: "{0} 份常驻指令", instrOne: "{0} 份常驻指令",
+    alwaysOn: "常驻 ~{0} tokens",
+    per1k: "{0} / 千次对话",
+    monthly: "{0} / 月 · {1} 次对话", monthlyOne: "{0} / 月 · {1} 次对话",
+    allClear: "✓ 一切正常，没有发现问题",
+    noAction: "✓ 没有需要动手的问题",
+    infoMore: "展开 {0} 条提示（插件捆绑技能等）", infoMoreOne: "展开 1 条提示（插件捆绑技能等）",
+    save: "可回收 ~{0} tokens",
+  },
+} satisfies Record<Lang, Record<string, string>>;
+
+export function renderHtml(report: Report, lang: Lang = "en"): string {
+  const T = HTML_COPY[lang];
+  type Key = keyof typeof T;
+  const t = (key: Key, ...args: (string | number)[]) => fmt(T[key], ...args);
+  /** plural-aware: uses `<key>One` when n === 1 and such a key exists */
+  const tn = (key: Key, n: number, ...rest: (string | number)[]) => {
+    const one = `${key}One` as Key;
+    return fmt(n === 1 && one in T ? T[one] : T[key], n, ...rest);
+  };
+  const num = (n: number) => n.toLocaleString("en-US");
   const agentCards = report.agents.map(agentCard).join("\n");
 
   return `<!doctype html>
-<html lang="zh-CN">
+<html lang="${T.htmlLang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>skill-slim · 体检报告</title>
+<title>${esc(T.title)}</title>
 <style>
   :root{
     --paper:#f6f1e7; --paper2:#efe7d6; --card:#fffdf8; --line:#e6dbc6;
@@ -118,7 +183,7 @@ export function renderHtml(report: Report): string {
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
-    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
     color:var(--ink);background:
       radial-gradient(1100px 500px at 15% -5%, #fdfaf3 0%, transparent 60%),
       linear-gradient(180deg,var(--paper) 0%,var(--paper2) 100%);
@@ -214,35 +279,32 @@ export function renderHtml(report: Report): string {
 </style></head>
 <body>
 <header>
-  <span class="logo">skill-<b>slim</b> · 体检报告</span>
-  <span class="when">${esc(fmtWhen(report.generatedAt))} · 统计窗口 ${report.windowDays} 天 · 检出 ${report.agents.filter((a) => a.detected).length}/${report.agents.length} 个 Agent</span>
+  <span class="logo">skill-<b>slim</b> · ${esc(T.logoSuffix)}</span>
+  <span class="when">${esc(t("when", fmtWhen(report.generatedAt), report.windowDays, report.agents.filter((a) => a.detected).length, report.agents.length))}</span>
 </header>
 <main>
   <div class="hero">
     <div class="hero-card">
       ${ring(report.score, 112, false)}
       <div>
-        <div class="hero-title">综合健康分 · ${grade(report.score)} 级</div>
-        <div class="hero-sub">
-          每轮对话都要携带的常驻上下文共 ~${report.totalAlwaysOnTokens.toLocaleString()} tokens；<br>
-          按当前用量节奏，每月约 ${esc(fmtUsd(report.totalMonthlyCost))}。
-        </div>
+        <div class="hero-title">${esc(t("heroTitle", grade(report.score)))}</div>
+        <div class="hero-sub">${t("heroSub", num(report.totalAlwaysOnTokens), esc(fmtUsd(report.totalMonthlyCost)))}</div>
       </div>
     </div>
     <div class="stat-tiles">
-      <div class="tile"><span class="k">常驻 tokens</span><span class="v">~${report.totalAlwaysOnTokens.toLocaleString()}</span><span class="k">every turn</span></div>
-      <div class="tile"><span class="k">每千次对话</span><span class="v money">${esc(fmtUsd(report.totalBillPer1000))}</span><span class="k">always-on 账单</span></div>
-      <div class="tile"><span class="k">每月成本</span><span class="v money">${esc(fmtUsd(report.totalMonthlyCost))}</span><span class="k">按观测节奏</span></div>
-      <div class="tile"><span class="k">可回收</span><span class="v recover">~${report.totalRecoverableTokens.toLocaleString()}</span><span class="k">tokens</span></div>
+      <div class="tile"><span class="k">${T.tileTokens}</span><span class="v">~${num(report.totalAlwaysOnTokens)}</span><span class="k">${T.tileTokensSub}</span></div>
+      <div class="tile"><span class="k">${T.tilePer1k}</span><span class="v money">${esc(fmtUsd(report.totalBillPer1000))}</span><span class="k">${T.tilePer1kSub}</span></div>
+      <div class="tile"><span class="k">${T.tileMonthly}</span><span class="v money">${esc(fmtUsd(report.totalMonthlyCost))}</span><span class="k">${T.tileMonthlySub}</span></div>
+      <div class="tile"><span class="k">${T.tileRecover}</span><span class="v recover">~${num(report.totalRecoverableTokens)}</span><span class="k">${T.tileRecoverSub}</span></div>
     </div>
   </div>
 
-  <div class="section-title">各 Agent 体检结果</div>
+  <div class="section-title">${T.section}</div>
   ${agentCards}
 
   <footer>
-    估算说明：token 为启发式计数（CJK ≈ 1 token/字符，其余 ≈ 3.8 字符/token），成本按 $3/M input tokens 计。<br>
-    下一步：<code>skill-slim fix</code> 预览瘦身方案（默认 dry-run）· <code>skill-slim restore</code> 恢复被隔离的技能 · 报告由 skill-slim 在本地生成，无任何网络请求。
+    ${T.footer1}<br>
+    ${T.footer2}
   </footer>
 </main>
 </body></html>`;
@@ -257,7 +319,7 @@ export function renderHtml(report: Report): string {
 <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#ece2cf" stroke-width="${w}"/>
 <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(c * score) / 100} ${c}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
 </svg>
-<div class="ring-num${small ? " small" : ""}"><b style="color:${col}">${score}</b>${small ? "" : "<span>健康分</span>"}</div>
+<div class="ring-num${small ? " small" : ""}"><b style="color:${col}">${score}</b>${small ? "" : `<span>${T.ring}</span>`}</div>
 </div>`;
   }
 
@@ -267,7 +329,7 @@ export function renderHtml(report: Report): string {
 
   function agentCard(a: AgentReport): string {
     if (!a.detected) {
-      return `<div class="agent"><div class="agent-skip">○ ${esc(a.name)} — 未安装，已跳过</div></div>`;
+      return `<div class="agent"><div class="agent-skip">○ ${esc(a.name)} — ${T.skipped}</div></div>`;
     }
     const actionable = a.findings.filter((f) => f.severity !== "info");
     const info = a.findings.filter((f) => f.severity === "info");
@@ -277,27 +339,27 @@ export function renderHtml(report: Report): string {
     ${ring(a.score, 64, true)}
   </div>
   <div class="agent-stats">
-    <span class="chip">${a.skillCount} 个技能</span>
-    <span class="chip">${a.instructionCount} 份常驻指令</span>
-    <span class="chip">常驻 ~${a.alwaysOnTokens.toLocaleString()} tokens</span>
-    <span class="chip money">${esc(fmtUsd(a.billPer1000))} / 千次对话</span>
-    ${a.conversations > 0 ? `<span class="chip money">${esc(fmtUsd(a.monthlyCost))} / 月 · ${a.conversations} 次对话</span>` : ""}
+    <span class="chip">${tn("skills", a.skillCount)}</span>
+    <span class="chip">${tn("instr", a.instructionCount)}</span>
+    <span class="chip">${t("alwaysOn", num(a.alwaysOnTokens))}</span>
+    <span class="chip money">${esc(t("per1k", fmtUsd(a.billPer1000)))}</span>
+    ${a.conversations > 0 ? `<span class="chip money">${esc(a.conversations === 1 ? t("monthlyOne", fmtUsd(a.monthlyCost), 1) : t("monthly", fmtUsd(a.monthlyCost), a.conversations))}</span>` : ""}
   </div>
-  ${a.findings.length === 0 ? `<div class="clean">✓ 一切正常，没有发现问题</div>` : ""}
+  ${a.findings.length === 0 ? `<div class="clean">${T.allClear}</div>` : ""}
   ${actionable.map(findingHtml).join("\n  ")}
-  ${actionable.length === 0 && info.length > 0 ? `<div class="clean">✓ 没有需要动手的问题</div>` : ""}
-  ${info.length > 0 ? `<details class="more"><summary>展开 ${info.length} 条提示（插件捆绑技能等）</summary>${info.map(findingHtml).join("")}</details>` : ""}
-  ${a.notes.length ? `<div class="notes">${a.notes.map(esc).join("<br>")}</div>` : ""}
+  ${actionable.length === 0 && info.length > 0 ? `<div class="clean">${T.noAction}</div>` : ""}
+  ${info.length > 0 ? `<details class="more"><summary>${tn("infoMore", info.length)}</summary>${info.map(findingHtml).join("")}</details>` : ""}
+  ${a.notes.length ? `<div class="notes">${a.notes.map((n) => esc(translate("note", n, lang))).join("<br>")}</div>` : ""}
 </div>`;
   }
 
   function findingHtml(f: Finding): string {
     const icon = f.severity === "error" ? "✖" : f.severity === "warn" ? "▲" : "·";
     return `<div class="finding">
-  <div class="f-title"><span class="sev-${f.severity}">${icon}</span>${esc(f.title)}</div>
-  <div class="f-detail">${esc(f.detail)}</div>
+  <div class="f-title"><span class="sev-${f.severity}">${icon}</span>${esc(translate("title", f.title, lang))}</div>
+  <div class="f-detail">${esc(translate("detail", f.detail, lang))}</div>
   ${f.paths.slice(0, 2).map((p) => `<div class="f-path">${esc(p)}</div>`).join("")}
-  ${f.recoverableTokens && f.recoverableTokens > 0 ? `<div class="f-save">可回收 ~${f.recoverableTokens.toLocaleString()} tokens</div>` : ""}
+  ${f.recoverableTokens && f.recoverableTokens > 0 ? `<div class="f-save">${t("save", num(f.recoverableTokens))}</div>` : ""}
 </div>`;
   }
 

@@ -1,7 +1,7 @@
 {
   "name": "skill-slim",
   "version": "0.2.0",
-  "description": "Health check & slim-down for your AI coding agent's skills, plugins and context files. Works with Claude Code, Codex, Gemini CLI, Cursor, opencode, Windsurf, Zed and Copilot CLI.",
+  "description": "Health check & slim-down for your AI coding agent's skills, plugins and context files. Works with Claude Code, Codex, Gemini CLI, Antigravity, Cursor, opencode, Windsurf, Zed and Copilot CLI.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -16,16 +16,20 @@
     "node": ">=22.18"
   },
   "bin": {
-    "skill-slim": "src/cli.ts"
+    "skill-slim": "dist/cli.js"
   },
   "scripts": {
     "start": "node src/cli.ts",
-    "test": "node --test tests/*.test.ts"
+    "build": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.ts",
+    "test:pack": "node scripts/pack-smoke.mjs"
   },
   "keywords": [
     "claude-code",
     "codex",
     "gemini-cli",
+    "antigravity",
     "cursor",
     "agent-skills",
     "context-window",
@@ -34,7 +38,7 @@
     "cli"
   ],
   "files": [
-    "src",
+    "dist",
     "SKILL.md",
     "README.md",
     "LICENSE"
