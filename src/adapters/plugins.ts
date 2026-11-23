@@ -122,6 +122,11 @@ interface ClaudeInstall {
  * off, later files winning. A plugin missing from every enabledPlugins map
  * counts as enabled, which is what installing it does.
  */
+function isWithin(child: string, parent: string): boolean {
+  const rel = path.relative(parent, child);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
 export async function resolveClaudePlugins(claudeDir: string, cwd: string): Promise<PluginResolution | null> {
   const installed = (await readJson(path.join(claudeDir, "plugins", "installed_plugins.json"))) as
     | { plugins?: Record<string, ClaudeInstall | ClaudeInstall[]> }
@@ -144,8 +149,8 @@ export async function resolveClaudePlugins(claudeDir: string, cwd: string): Prom
   for (const [id, value] of Object.entries(installed.plugins)) {
     const records = (Array.isArray(value) ? value : [value]).filter(
       (r) => r && typeof r.installPath === "string" &&
-        // project/local installs only apply inside that project
-        (!r.projectPath || (r.scope !== "project" && r.scope !== "local") || path.resolve(r.projectPath) === here),
+        // project/local installs apply inside that project and its subdirectories
+        (!r.projectPath || (r.scope !== "project" && r.scope !== "local") || isWithin(here, path.resolve(r.projectPath))),
     );
     if (records.length === 0) continue;
     if (enabled.get(id) === false) {

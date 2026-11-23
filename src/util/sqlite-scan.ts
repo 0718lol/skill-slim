@@ -40,6 +40,8 @@ export async function scanSqliteDbs(
      *  given, only a match proves the skill system is logged — merely seeing
      *  "SKILL.md" (e.g. in a skill catalog) is not enough. */
     pattern?: RegExp;
+    /** Optional filter/normalizer for pattern matches; return null to ignore a match. */
+    extractName?: (match: RegExpMatchArray) => string | null;
   },
 ): Promise<SqliteUsage> {
   const pattern = opts?.pattern ?? SKILL_PATH_RE;
@@ -75,8 +77,10 @@ export async function scanSqliteDbs(
             if (!text || !text.includes("SKILL.md")) continue;
             if (!opts?.pattern) usage.sawSkillSystem = true;
             for (const match of text.matchAll(pattern)) {
+              const extracted = opts?.extractName ? opts.extractName(match) : match[1];
+              if (!extracted) continue;
               usage.sawSkillSystem = true;
-              const name = match[1].toLowerCase();
+              const name = extracted.toLowerCase();
               const prev = usage.hits.get(name) ?? { count: 0 };
               prev.count += 1;
               usage.hits.set(name, prev);

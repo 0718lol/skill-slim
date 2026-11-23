@@ -4,10 +4,10 @@ import { realpathSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ADAPTERS } from "./adapters/index.ts";
-import { evaluateGates, grade, runChecks } from "./core/checks.ts";
+import { evaluateGates, grade, hasUsageEvidence, runChecks } from "./core/checks.ts";
 import { collect, getHome } from "./core/collect.ts";
 import { renderHtml, renderTerminal, toJson, writeReportFile } from "./core/report.ts";
-import { countUnused, renderWrappedHtml } from "./core/wrapped.ts";
+import { aggregateUsage, countUnused, renderWrappedHtml } from "./core/wrapped.ts";
 import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, totalSavings } from "./fix.ts";
 import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
@@ -110,18 +110,13 @@ async function runWrapped(
 
   // terminal teaser: top skill + sleepers + score, the rest lives in the file
   const detected = scans.filter((s) => s.detected);
-  const totals = new Map<string, number>();
-  for (const scan of detected) {
-    for (const [name, stat] of scan.usage) {
-      if (stat.count > 0) totals.set(name, (totals.get(name) ?? 0) + stat.count);
-    }
-  }
-  const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
+  const top = aggregateUsage(detected)[0];
+  const evidence = detected.some((s) => hasUsageEvidence(s));
   const unused = countUnused(detected);
-  const sleepers = unused.owned + unused.bundled;
+  const sleepers = evidence ? String(unused.owned + unused.bundled) : "–";
 
   console.log(`\n  skill-slim wrapped · last ${opts.days} days`);
-  console.log(`  ${top ? `most used: ${top[0]} (${top[1]}×)` : "no parseable invocations"} · never invoked: ${sleepers} · health ${report.score} (${grade(report.score)})`);
+  console.log(`  ${top ? `most used: ${top.name} (${top.count}×)` : "no parseable invocations"} · never invoked: ${sleepers} · health ${report.score} (${grade(report.score)})`);
   console.log(`  ✓ skill bill written to ${file} — open it and share\n`);
   return 0;
 }

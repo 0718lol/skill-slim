@@ -54,10 +54,10 @@ export function runChecks(scan: AgentScan, windowDays = 30): AgentReport {
       agent: scan.id,
       kind: "token-bill",
       severity: alwaysOn > 8000 ? "warn" : "info",
-      title: `Always-on context: ~${alwaysOn.toLocaleString()} tokens`,
+      title: `Always-on context: ~${alwaysOn.toLocaleString("en-US")} tokens`,
       detail:
-        `instructions ~${instructionTokens.toLocaleString()} tok + ${scan.skills.length} skill descriptions ` +
-        `~${descriptionTokens.toLocaleString()} tok` +
+        `instructions ~${instructionTokens.toLocaleString("en-US")} tok + ${scan.skills.length} skill descriptions ` +
+        `~${descriptionTokens.toLocaleString("en-US")} tok` +
         (heavy.length ? `; heaviest: ${heavy.join(", ")}` : ""),
       paths: [],
       recoverableTokens: 0,
@@ -151,7 +151,7 @@ export function runChecks(scan: AgentScan, windowDays = 30): AgentReport {
         kind: "convention",
         // plugin-bundled bodies are the plugin author's to fix, not the user's
         severity: bundled ? "info" : "warn",
-        title: `"${skill.name}" body is large (${bodyLines} lines, ~${bodyTokens.toLocaleString()} tok)`,
+        title: `"${skill.name}" body is large (${bodyLines} lines, ~${bodyTokens.toLocaleString("en-US")} tok)`,
         detail: bundled
           ? "Ships inside a plugin bundle; only the plugin author can split it up."
           : "Move reference material into separate files loaded on demand (progressive disclosure).",
@@ -230,7 +230,7 @@ export function evaluateGates(
   }
   if (gates.maxAlwaysOnTokens !== undefined && report.totalAlwaysOnTokens > gates.maxAlwaysOnTokens) {
     failures.push(
-      `always-on context ~${report.totalAlwaysOnTokens.toLocaleString()} tokens exceeds --max-always-on-tokens ${gates.maxAlwaysOnTokens.toLocaleString()}`,
+      `always-on context ~${report.totalAlwaysOnTokens.toLocaleString("en-US")} tokens exceeds --max-always-on-tokens ${gates.maxAlwaysOnTokens.toLocaleString("en-US")}`,
     );
   }
   return failures;

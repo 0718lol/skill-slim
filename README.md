@@ -117,7 +117,7 @@ type stripper — still zero dependencies), because Node does not run TypeScript
 | Claude Code | `~/.claude/skills`, `.claude/skills`, plugin bundles | global & project `CLAUDE.md` | ✅ local `~/.claude/projects` transcripts |
 | Codex CLI | `~/.codex/skills`, `~/.codex/prompts`, plugin bundles | global & project `AGENTS.md` | ✅ exec calls reading a `SKILL.md` + leading slash commands |
 | Gemini CLI | `~/.gemini/skills`, `.gemini/skills` | global & project `GEMINI.md`, extensions | — not logged locally |
-| Antigravity | `~/.gemini/config/skills`, installed plugins (`config.json`), builtin skills, `.agent/skills` | `always_on` rules, `GEMINI.md` | ✅ `view_file` calls on `SKILL.md` in conversation DBs, evidence-gated |
+| Antigravity | `~/.gemini/config/skills`, installed plugins (`config.json`), `.agent/skills` | always-on rules (`always_on` / standalone `AGENTS.md`), `GEMINI.md` | ✅ `view_file` / `read_file` calls on `SKILL.md` in conversation DBs, evidence-gated |
 | Cursor | non-always-apply `.cursor/rules/*.mdc` | always-apply rules | conversations only (`ai-tracking`); rule usage isn't logged |
 | opencode | `~/.config/opencode/skills`, commands; compat `~/.claude/skills`, `~/.agents/skills` | global & project `AGENTS.md` (CLAUDE.md fallback) | ✅ session SQLite (`part`/`session_message`, evidence-gated) |
 | Windsurf | `.windsurf`/`.devin` rules & workflows, `~/.codeium/windsurf/global_workflows` | `memories/global_rules.md`, `.windsurfrules`, `always_on` rules | — not logged locally |

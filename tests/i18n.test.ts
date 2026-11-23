@@ -78,6 +78,22 @@ test("translate passes unknown text through and leaves English alone", () => {
     translate("detail", "instructions ~10 tok + 2 skill descriptions ~5 tok; heaviest: a, b", "zh"),
     "指令文件约 10 tok + 2 个技能描述约 5 tok；最重的：a, b",
   );
+  assert.equal(
+    translate("note", "14 app-builtin skill(s) not billed (loaded conditionally by Antigravity)", "zh"),
+    "14 个应用内置技能未计入常驻（由 Antigravity 按条件加载）",
+  );
+  assert.equal(
+    translate("note", "scanned 5 conversation database(s) (2 unreadable)", "zh"),
+    "扫描了 5 个会话数据库（2 个无法读取）",
+  );
+  assert.equal(
+    translate("note", "scanned 5 conversation database(s)", "zh"),
+    "扫描了 5 个会话数据库",
+  );
+  assert.equal(
+    translate("note", "2 extension(s), 4 context file(s) counted", "zh"),
+    "统计了 2 个扩展、4 份上下文文件",
+  );
 });
 
 test("every Chinese template only references capture groups its regex has", () => {

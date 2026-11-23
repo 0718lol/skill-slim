@@ -29,6 +29,47 @@ export function countUnused(scans: AgentScan[]): { owned: number; bundled: numbe
   return { owned, bundled };
 }
 
+/**
+ * Aggregate skill invocations across detected agents, resolving both
+ * frontmatter names and folder names (e.g. `workflow_skill_creator` →
+ * `workflow-skill-creator`) to a single canonical entry.
+ */
+export function aggregateUsage(scans: AgentScan[]): { name: string; count: number; agents: Set<string> }[] {
+  const canonical = new Map<string, { key: string; display: string }>();
+  for (const scan of scans) {
+    if (!scan.detected) continue;
+    for (const skill of scan.skills) {
+      const key = skill.name.toLowerCase();
+      canonical.set(key, { key, display: skill.name });
+    }
+  }
+  for (const scan of scans) {
+    if (!scan.detected) continue;
+    for (const skill of scan.skills) {
+      if (!skill.dirName) continue;
+      const dirKey = skill.dirName.toLowerCase().replace(/\.(md|mdc|toml)$/, "");
+      if (!canonical.has(dirKey)) {
+        canonical.set(dirKey, { key: skill.name.toLowerCase(), display: skill.name });
+      }
+    }
+  }
+  const totals = new Map<string, { name: string; count: number; agents: Set<string> }>();
+  for (const scan of scans) {
+    if (!scan.detected) continue;
+    for (const [raw, stat] of scan.usage) {
+      if (stat.count <= 0) continue;
+      const resolved = canonical.get(raw);
+      const key = resolved?.key ?? raw;
+      const display = resolved?.display ?? raw;
+      const entry = totals.get(key) ?? { name: display, count: 0, agents: new Set<string>() };
+      entry.count += stat.count;
+      entry.agents.add(scan.id);
+      totals.set(key, entry);
+    }
+  }
+  return [...totals.values()].sort((a, b) => b.count - a.count);
+}
+
 const WRAPPED_COPY = {
   en: {
     htmlLang: "en",
@@ -80,24 +121,8 @@ export function renderWrappedHtml(report: Report, scans: AgentScan[], lang: Lang
   const detected = scans.filter((s) => s.detected);
   const totalConversations = detected.reduce((sum, s) => sum + s.conversationCount, 0);
 
-  // aggregate invocation counts across agents; usage maps are keyed lowercase,
-  // recover the original casing from the skill lists
-  const display = new Map<string, string>();
-  for (const scan of detected) {
-    for (const skill of scan.skills) display.set(skill.name.toLowerCase(), skill.name);
-  }
-  const totals = new Map<string, { count: number; agents: Set<string> }>();
-  for (const scan of detected) {
-    for (const [name, stat] of scan.usage) {
-      if (stat.count <= 0) continue;
-      const entry = totals.get(name) ?? { count: 0, agents: new Set<string>() };
-      entry.count += stat.count;
-      entry.agents.add(scan.id);
-      totals.set(name, entry);
-    }
-  }
-  const top = [...totals.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 5);
-  const maxCount = top[0]?.[1].count ?? 1;
+  const top = aggregateUsage(detected).slice(0, 5);
+  const maxCount = top[0]?.count ?? 1;
 
   const { owned: ownedUnused, bundled: bundledUnused } = countUnused(detected);
 
@@ -193,11 +218,11 @@ export function renderWrappedHtml(report: Report, scans: AgentScan[], lang: Lang
         ? `<div class="note">${T.noUsage}</div>`
         : top
             .map(
-              ([name, u], i) => `
+              (u, i) => `
     <div class="row">
       <div class="rank">${i + 1}</div>
       <div class="bar-wrap">
-        <div class="bar-name"><span>${esc(display.get(name) ?? name)}</span><span class="n">${esc(fmt(T.times, u.count))} · ${[...u.agents].join(" / ")}</span></div>
+        <div class="bar-name"><span>${esc(u.name)}</span><span class="n">${esc(fmt(T.times, u.count))} · ${[...u.agents].join(" / ")}</span></div>
         <div class="track"><div class="fill" style="width:${Math.max(6, Math.round((u.count / maxCount) * 100))}%"></div></div>
       </div>
     </div>`,

@@ -157,7 +157,7 @@ function collectFromLine(line: string, usage: Map<string, UsageStat>): void {
 
   if (payload.type === "custom_tool_call" || payload.type === "function_call") {
     const inputText = typeof payload.input === "string" ? payload.input : JSON.stringify(payload.input ?? "");
-    if (!inputText.includes("SKILL.md") && !inputText.includes(".codex/skills/")) return;
+    if (!inputText.includes("SKILL.md") && !/\.codex[\\/]+skills[\\/]/.test(inputText)) return;
     for (const re of [SKILL_PATH_RE, CODEX_SKILL_DIR_RE]) {
       for (const match of inputText.matchAll(re)) {
         bump(match[1], usage);
@@ -175,7 +175,8 @@ function collectFromLine(line: string, usage: Map<string, UsageStat>): void {
 
 function bump(name: string, usage: Map<string, UsageStat>): void {
   const key = name.toLowerCase();
-  if (!key) return;
+  // ignore hidden directories like `.system` under ~/.codex/skills/.system/
+  if (!key || key.startsWith(".")) return;
   const prev = usage.get(key) ?? { count: 0 };
   prev.count += 1;
   usage.set(key, prev);

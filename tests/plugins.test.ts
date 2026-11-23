@@ -113,6 +113,25 @@ test("claude: installed_plugins.json + enabledPlugins decide; marketplace catalo
     const scan = await claudeCodeAdapter.scan({ home, cwd: home, windowDays: 30 });
     assert.deepEqual(scan.skills.map((s) => s.name), ["on-skill"]);
     assert.ok(scan.notes.includes("skipped 1 installed plugin(s) disabled in settings"), scan.notes.join("; "));
+
+    // project-scoped plugin also matches when invoked from a subdirectory of projectPath
+    const projRoot = path.join(home, "repo");
+    const subDir = path.join(projRoot, "packages", "web");
+    mkdirSync(subDir, { recursive: true });
+    const projPlug = path.join(plugins, "cache", "mkt", "proj-plugin", "1.0.0");
+    writeSkill(path.join(projPlug, "skills"), "proj-skill");
+    writeFileSync(
+      path.join(plugins, "installed_plugins.json"),
+      JSON.stringify({
+        version: 2,
+        plugins: {
+          "proj-plugin@mkt": [{ scope: "project", projectPath: projRoot, installPath: projPlug }],
+          "sibling@mkt": [{ scope: "project", projectPath: path.join(home, "repo-other"), installPath: onPath }],
+        },
+      }),
+    );
+    const subScan = await claudeCodeAdapter.scan({ home, cwd: subDir, windowDays: 30 });
+    assert.deepEqual(subScan.skills.map((s) => s.name), ["proj-skill"]);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

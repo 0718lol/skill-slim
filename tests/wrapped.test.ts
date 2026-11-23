@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { countUnused, renderWrappedHtml } from "../src/core/wrapped.ts";
+import { aggregateUsage, countUnused, renderWrappedHtml } from "../src/core/wrapped.ts";
 import type { AgentScan, Report, Skill, UsageStat } from "../src/types.ts";
 
 function skill(name: string, source: Skill["source"] = "global"): Skill {
@@ -124,4 +124,27 @@ test("wrapped bill escapes skill names", () => {
   ]);
   assert.ok(!html.includes("<img"));
   assert.ok(html.includes("&lt;img src=&quot;x&quot;&gt;&amp;"));
+});
+
+test("wrapped resolves folder-name usage to the frontmatter skill name and aggregates across agents", () => {
+  const agy = scan({
+    id: "antigravity",
+    name: "Antigravity",
+    skills: [{ ...skill("workflow-skill-creator", "plugin"), agent: "antigravity", dirName: "workflow_skill_creator" }],
+    usage: new Map([["workflow_skill_creator", { count: 2 }]]),
+  });
+  const claude = scan({
+    id: "claude-code",
+    name: "Claude Code",
+    skills: [skill("workflow-skill-creator")],
+    usage: new Map([["workflow-skill-creator", { count: 3 }]]),
+  });
+  const agg = aggregateUsage([agy, claude]);
+  assert.equal(agg.length, 1);
+  assert.equal(agg[0].name, "workflow-skill-creator");
+  assert.equal(agg[0].count, 5);
+  assert.deepEqual([...agg[0].agents].sort(), ["antigravity", "claude-code"]);
+  const html = renderWrappedHtml(report({}), [agy, claude], "en");
+  assert.match(html, /workflow-skill-creator/);
+  assert.ok(!html.includes("workflow_skill_creator"));
 });

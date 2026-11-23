@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { codexAdapter } from "../src/adapters/codex.ts";
 import { runChecks } from "../src/core/checks.ts";
@@ -31,4 +33,28 @@ test("codex adapter reports not-detected for empty home", async () => {
   const scan = await codexAdapter.scan({ home: "/nonexistent-home-xyz", cwd: "/tmp", windowDays: 30 });
   assert.equal(scan.detected, false);
   assert.equal(scan.skills.length, 0);
+});
+
+test("codex usage accepts Windows backslash paths without SKILL.md and ignores hidden dirs like .system", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "sd-codex-win-"));
+  try {
+    const sessDir = path.join(home, ".codex", "sessions");
+    fs.mkdirSync(sessDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(sessDir, "rollout.jsonl"),
+      [
+        JSON.stringify({
+          payload: { type: "custom_tool_call", input: { cmd: String.raw`python C:\Users\me\.codex\skills\win-tool\run.py` } },
+        }),
+        JSON.stringify({
+          payload: { type: "custom_tool_call", input: { cmd: "cat ~/.codex/skills/.system/skill-installer/SKILL.md" } },
+        }),
+      ].join("\n") + "\n",
+    );
+    const scan = await codexAdapter.scan({ home, cwd: home, windowDays: 30 });
+    assert.equal(scan.usage.get("win-tool")?.count, 1);
+    assert.ok(!scan.usage.has(".system"), "hidden directories like .system must not count as a skill");
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
 });
