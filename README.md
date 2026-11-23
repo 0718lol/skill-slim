@@ -218,6 +218,12 @@ Codex（exec 调用代理）、Gemini CLI（Antigravity 会话库，证据门控
 调用，仅读取会话数支撑月度账单。常用命令见上方 Usage；`fix` 默认 dry-run，加 `--apply`
 才会实际移动目录到 `~/.skill-slim/quarantine/`，`restore <name>` 随时恢复。
 
+## Related skills
+
+- **[pr-test-receipt](https://github.com/0718lol/pr-test-receipt)** — Pre-PR verification and paste-ready GitHub/GitLab test receipts (separates dirty working-tree runs from committed `HEAD` and catches `0`-test false passes).
+- **[verify-engineering-work](https://github.com/0718lol/verify-engineering-work)** — Full risk-aware reliability workflow for AI coding agents.
+- **[scout-before-build](https://github.com/0718lol/scout-before-build)** — Scouts GitHub and design references before starting a build.
+
 ## License
 
 MIT
