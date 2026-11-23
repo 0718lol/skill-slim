@@ -15,7 +15,7 @@ const MAX_RULE_FILES = 60;
  * and `find` output or file writes mention SKILL.md paths without loading them.
  */
 export const ANTIGRAVITY_SKILL_CALL_RE =
-  /\b(?:view_file|read_file)[^{]{0,40}\{"(?:AbsolutePath|Path|path|file_path)":"[^"]*?\/skills\/([A-Za-z0-9_.-]+)\/SKILL\.md"/g;
+  /\b(?:view_file|read_file)[^{]{0,40}\{"(?:AbsolutePath|Path|path|file_path)":"[^"]*?[\\/]skills[\\/]+([A-Za-z0-9_.-]+)[\\/]+SKILL\.md"/g;
 
 /**
  * Google Antigravity. It shares ~/.gemini with Gemini CLI but is a separate

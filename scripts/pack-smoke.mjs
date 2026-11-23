@@ -8,7 +8,7 @@
  * detection, and so on.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, readdirSync, mkdirSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,16 @@ const isWin = process.platform === "win32";
 const npm = isWin ? "npm.cmd" : "npm";
 
 function run(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], shell: isWin, ...opts });
+  // .cmd shims need a shell on Windows; quote paths that might contain spaces
+  const argv = isWin ? args.map((a) => (/[\s&()]/.test(a) ? `"${a}"` : a)) : args;
+  const file = isWin && /\s/.test(cmd) ? `"${cmd}"` : cmd;
+  return execFileSync(file, argv, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], shell: isWin, ...opts });
+}
+
+function listFiles(dir, prefix = "") {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? listFiles(path.join(dir, e.name), `${prefix}${e.name}/`) : [`${prefix}${e.name}`],
+  );
 }
 
 try {
@@ -27,16 +36,20 @@ try {
   const tarball = readdirSync(work).find((f) => f.endsWith(".tgz"));
   if (!tarball) throw new Error("npm pack produced no tarball");
 
-  const files = run("tar", ["-tzf", path.join(work, tarball)]).split(/\r?\n/).filter(Boolean);
-  for (const required of ["package/dist/cli.js", "package/SKILL.md", "package/README.md", "package/LICENSE"]) {
-    if (!files.includes(required)) throw new Error(`tarball is missing ${required}`);
-  }
-  if (files.some((f) => f.endsWith(".ts"))) throw new Error("tarball ships .ts files — Node cannot run them from node_modules");
-
   const app = path.join(work, "app");
   mkdirSync(app);
   writeFileSync(path.join(app, "package.json"), JSON.stringify({ name: "smoke", version: "0.0.0", private: true }));
   run(npm, ["install", "--silent", "--no-audit", "--no-fund", path.join(work, tarball)], { cwd: app });
+
+  // inspect what was installed rather than shelling out to tar (on Windows
+  // runners Git's GNU tar can shadow bsdtar and misread C:\ as a host)
+  const pkgDir = path.join(app, "node_modules", "skill-slim");
+  if (!existsSync(pkgDir)) throw new Error("tarball did not install as node_modules/skill-slim");
+  const files = listFiles(pkgDir);
+  for (const required of ["dist/cli.js", "SKILL.md", "README.md", "LICENSE"]) {
+    if (!files.includes(required)) throw new Error(`tarball is missing ${required}`);
+  }
+  if (files.some((f) => f.endsWith(".ts"))) throw new Error("tarball ships .ts files — Node cannot run them from node_modules");
 
   const bin = path.join(app, "node_modules", ".bin", isWin ? "skill-slim.cmd" : "skill-slim");
   const home = path.join(work, "home");

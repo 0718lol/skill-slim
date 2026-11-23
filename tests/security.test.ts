@@ -40,7 +40,8 @@ const DESC_PAYLOAD = 'deploys <img src=x onerror=alert(1)> services & "quotes" <
 // dir names with a closing-tag sequence (</) are unreliable on some filesystem
 // sandboxes, so the hostile dir name uses an open tag — the escaping requirement
 // under test is identical
-const DIRNAME_PAYLOAD = "dir-with-<b>html";
+// Windows forbids < > " in file names; & and ' are still HTML-significant
+const DIRNAME_PAYLOAD = process.platform === "win32" ? "dir-with-&amp-'quote" : "dir-with-<b>html";
 
 function tempHome(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

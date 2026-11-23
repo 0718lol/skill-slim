@@ -5,7 +5,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { geminiCliAdapter } from "../src/adapters/gemini-cli.ts";
-import { antigravityAdapter } from "../src/adapters/antigravity.ts";
+import { ANTIGRAVITY_SKILL_CALL_RE, antigravityAdapter } from "../src/adapters/antigravity.ts";
+import { SKILL_PATH_RE } from "../src/util/sqlite-scan.ts";
 import { runChecks } from "../src/core/checks.ts";
 
 // fixtures carry only a handful of conversations; the gate has its own tests
@@ -73,6 +74,14 @@ test("antigravity counts only real skill reads, never the prompt's skill catalog
   const unused = runChecks(scan, 30).findings.filter((f) => f.kind === "unused");
   assert.deepEqual(unused.map((f) => f.title.split('"')[1]), ["ghost"]);
   fs.rmSync(home, { recursive: true, force: true });
+});
+
+test("antigravity and the shared path proxy understand Windows paths", async () => {
+  const winPath = String.raw`C:\\Users\\me\\.gemini\\config\\skills\\alpha\\SKILL.md`; // JSON-escaped
+  const hits = (re: RegExp, s: string) => [...s.matchAll(re)].map((m) => m[1]);
+  assert.deepEqual(hits(ANTIGRAVITY_SKILL_CALL_RE, viewCall(winPath)), ["alpha"]);
+  assert.deepEqual(hits(ANTIGRAVITY_SKILL_CALL_RE, viewCall(String.raw`C:\Users\me\skills\beta\SKILL.md`)), ["beta"]);
+  assert.deepEqual(hits(SKILL_PATH_RE, `type ${winPath} and cat ~/.agents/skills/gamma/SKILL.md`), ["alpha", "gamma"]);
 });
 
 test("antigravity abstains when the catalog is the only SKILL.md trace", async () => {

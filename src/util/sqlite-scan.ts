@@ -15,8 +15,9 @@ export interface SqliteUsage {
   failed: number;
 }
 
-/** `skills/<name>/SKILL.md` reference — the shared invocation proxy. */
-export const SKILL_PATH_RE = /\bskills\/([A-Za-z0-9_.-]+)\/SKILL\.md\b/g;
+/** `skills/<name>/SKILL.md` reference — the shared invocation proxy. Accepts
+ *  `/`, `\` and JSON-escaped `\\` separators so Windows paths count too. */
+export const SKILL_PATH_RE = /\bskills[\\/]+([A-Za-z0-9_.-]+)[\\/]+SKILL\.md\b/g;
 const MAX_DB_FILES = 500;
 const MAX_ROWS_PER_QUERY = 50_000;
 const MAX_VALUE_BYTES = 20 * 1024 * 1024;

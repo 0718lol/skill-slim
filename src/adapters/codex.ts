@@ -16,8 +16,9 @@ const MAX_TOTAL_SESSION_BYTES = 500 * 1024 * 1024;
  * Only tool-call *inputs* are scanned — command outputs (ls dumps etc.)
  * overcount wildly.
  */
-const SKILL_PATH_RE = /skills\/([A-Za-z0-9_.-]+)\/SKILL\.md/g;
-const CODEX_SKILL_DIR_RE = /\.codex\/skills\/([A-Za-z0-9_.-]+)/g;
+// separators: `/`, `\` and JSON-escaped `\\` (Windows session logs)
+const SKILL_PATH_RE = /skills[\\/]+([A-Za-z0-9_.-]+)[\\/]+SKILL\.md/g;
+const CODEX_SKILL_DIR_RE = /\.codex[\\/]+skills[\\/]+([A-Za-z0-9_.-]+)/g;
 const SLASH_COMMAND_RE = /^\/([A-Za-z0-9_-]{2,64})(?:\s|$)/;
 
 export const codexAdapter = {
