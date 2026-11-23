@@ -12,6 +12,7 @@ import { applyFix, estimateMonthlySavings, planFix, readManifest, restore, total
 import { startServer } from "./server.ts";
 import { fmtUsd } from "./util/tokens.ts";
 import { VERSION } from "./version.ts";
+import { detectLang, LANGS, parseLang, type Lang } from "./i18n.ts";
 
 // `skill-slim | head` closes the pipe early; that is a normal exit, not a crash
 process.stdout.on("error", (err: NodeJS.ErrnoException) => {
@@ -26,6 +27,7 @@ interface CliOptions {
   days: number;
   json: boolean;
   html?: string;
+  lang?: Lang;
   apply: boolean;
   verbose: boolean;
   minScore?: number;
@@ -85,7 +87,7 @@ export async function main(argv: string[]): Promise<number> {
     console.log(renderTerminal(report, { verbose: opts.verbose }));
   }
   if (opts.html) {
-    writeReportFile(opts.html, renderHtml(report));
+    writeReportFile(opts.html, renderHtml(report, detectLang(opts.lang)));
     if (!opts.json) console.log(`HTML report written to ${opts.html}`);
   }
   const failures = evaluateGates(report, { minScore: opts.minScore, maxAlwaysOnTokens: opts.maxAlwaysOnTokens });
@@ -104,7 +106,7 @@ async function runWrapped(
 ): Promise<number> {
   const { report, scans } = collected;
   const file = opts.html ?? "skill-slim-wrapped.html";
-  writeReportFile(file, renderWrappedHtml(report, scans));
+  writeReportFile(file, renderWrappedHtml(report, scans, detectLang(opts.lang)));
 
   // terminal teaser: top skill + sleepers + score, the rest lives in the file
   const detected = scans.filter((s) => s.detected);
@@ -267,6 +269,11 @@ function parseArgs(argv: string[]): CliOptions {
       opts.json = true;
     } else if (arg === "--html") {
       opts.html = argv[++i] ?? "skill-slim-report.html";
+    } else if (arg === "--lang") {
+      const value = argv[++i];
+      const lang = parseLang(value);
+      if (!lang) throw new Error(`--lang expects one of: ${LANGS.join(", ")}`);
+      opts.lang = lang;
     } else if (arg === "--apply") {
       opts.apply = true;
     } else if (arg === "--verbose") {
@@ -330,6 +337,8 @@ function printHelp(): void {
     --days <n>      usage window in days (default 30)
     --json          machine-readable JSON output
     --html <file>   also write a shareable HTML report
+    --lang <en|zh>  language of --html / wrapped files (default: SKILL_SLIM_LANG,
+                    then your system locale; anything but Chinese gets English)
     --apply         with fix: actually move directories
     --verbose       show informational findings hidden by default
     --min-score <n> exit with code 1 when the overall score is below n (CI)

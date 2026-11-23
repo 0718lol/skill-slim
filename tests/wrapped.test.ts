@@ -47,8 +47,20 @@ function report(overrides: Partial<Report>): Report {
   };
 }
 
-test("wrapped bill renders leaderboard, sleepers and per-agent chips", () => {
+test("wrapped bill renders in English by default", () => {
   const html = renderWrappedHtml(report({}), [scan({})]);
+  assert.match(html, /<html lang="en">/);
+  assert.match(html, /skills bill/);
+  assert.match(html, /Most-invoked skills/);
+  assert.match(html, /6×/);
+  assert.match(html, /1 of your own skills were never invoked/);
+  assert.match(html, /3 skills · 12 conversations/);
+  assert.ok(!/[\u4e00-\u9fff]/.test(html), "no Chinese in the English bill");
+});
+
+test("wrapped bill renders leaderboard, sleepers and per-agent chips", () => {
+  const html = renderWrappedHtml(report({}), [scan({})], "zh");
+  assert.match(html, /<html lang="zh-CN">/);
   assert.match(html, /技能账单/);
   assert.match(html, /最常调用的技能/);
   assert.match(html, /alpha/);
@@ -68,7 +80,7 @@ test("wrapped bill aggregates the same skill across agents", () => {
     skills: [skill("alpha")],
     conversationCount: 5,
   });
-  const html = renderWrappedHtml(report({}), [claude, codex]);
+  const html = renderWrappedHtml(report({}), [claude, codex], "zh");
   assert.match(html, /alpha/);
   assert.match(html, /12 次/); // 6 + 6 across two agents
   assert.match(html, /claude-code \/ codex/);
@@ -77,7 +89,8 @@ test("wrapped bill aggregates the same skill across agents", () => {
 test("wrapped bill says so honestly when no usage is parseable", () => {
   const html = renderWrappedHtml(report({}), [
     scan({ usage: new Map(), usageAvailable: false, conversationCount: 0 }),
-  ]);
+  ], "zh");
+  assert.match(html, /会话太少/, "no evidence → no sleeper count is claimed");
   assert.match(html, /没有可解析的调用记录/);
   assert.ok(!html.includes("次 ·"));
 });

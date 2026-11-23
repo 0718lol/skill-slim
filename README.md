@@ -71,6 +71,7 @@ npx skill-slim restore                 # list quarantined skills
 npx skill-slim restore <name>          # move one back to its original location
 npx skill-slim --json                  # machine-readable output
 npx skill-slim --html report.html      # shareable HTML report card
+npx skill-slim --html r.html --lang zh # report / wrapped bill in Chinese (default: system locale)
 npx skill-slim --agent claude-code,codex --days 14
 npx skill-slim --verbose               # expand collapsed informational findings
 ```
