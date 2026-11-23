@@ -259,7 +259,9 @@ function parseArgs(argv: string[]): CliOptions {
       opts.days = Number(argv[++i]);
       if (!Number.isFinite(opts.days) || opts.days <= 0) throw new Error("--days expects a positive number");
     } else if (arg === "--agent") {
-      opts.agents = (argv[++i] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      const agents = argv[++i]?.split(",").map((s) => s.trim()).filter(Boolean);
+      if (!agents?.length || agents[0].startsWith("--")) throw new Error("--agent expects a comma-separated list of agent IDs");
+      opts.agents = agents;
     } else if (arg === "--json") {
       opts.json = true;
     } else if (arg === "--html") {

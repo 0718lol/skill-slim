@@ -17,8 +17,8 @@ const MAX_TOTAL_SESSION_BYTES = 500 * 1024 * 1024;
  * overcount wildly.
  */
 // separators: `/`, `\` and JSON-escaped `\\` (Windows session logs)
-const SKILL_PATH_RE = /skills[\\/]+([A-Za-z0-9_.-]+)[\\/]+SKILL\.md/g;
-const CODEX_SKILL_DIR_RE = /\.codex[\\/]+skills[\\/]+([A-Za-z0-9_.-]+)/g;
+// Consume the .codex prefix so the same path cannot also match as a generic SKILL.md read.
+const SKILL_PATH_RE = /\.codex[\\/]+skills[\\/]+([\p{L}\p{M}\p{N}_.-]+)|skills[\\/]+([\p{L}\p{M}\p{N}_.-]+)[\\/]+SKILL\.md/gu;
 const SLASH_COMMAND_RE = /^\/([A-Za-z0-9_-]{2,64})(?:\s|$)/;
 
 export const codexAdapter = {
@@ -145,7 +145,7 @@ function collectFromLine(line: string, usage: Map<string, UsageStat>): void {
   if (!line.includes('{"')) return;
   let rec: {
     type?: string;
-    payload?: { type?: string; name?: string; input?: unknown; message?: unknown };
+    payload?: { type?: string; name?: string; input?: unknown; arguments?: unknown; message?: unknown };
   };
   try {
     rec = JSON.parse(line);
@@ -156,12 +156,10 @@ function collectFromLine(line: string, usage: Map<string, UsageStat>): void {
   if (!payload) return;
 
   if (payload.type === "custom_tool_call" || payload.type === "function_call") {
-    const inputText = typeof payload.input === "string" ? payload.input : JSON.stringify(payload.input ?? "");
-    if (!inputText.includes("SKILL.md") && !/\.codex[\\/]+skills[\\/]/.test(inputText)) return;
-    for (const re of [SKILL_PATH_RE, CODEX_SKILL_DIR_RE]) {
-      for (const match of inputText.matchAll(re)) {
-        bump(match[1], usage);
-      }
+    const input = payload.type === "function_call" ? payload.arguments ?? payload.input : payload.input;
+    const inputText = typeof input === "string" ? input : JSON.stringify(input ?? "");
+    for (const match of inputText.matchAll(SKILL_PATH_RE)) {
+      bump(match[1] ?? match[2], usage);
     }
     return;
   }
