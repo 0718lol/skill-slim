@@ -48,13 +48,13 @@ export function parseCodexPluginTables(toml: string): Map<string, boolean> {
   for (const raw of toml.split(/\r?\n/)) {
     const line = raw.replace(/\s+#.*$/, "").trim();
     if (line.startsWith("[")) {
-      const m = /^\[\s*plugins\.(?:"([^"]+)"|'([^']+)')\s*\]$/.exec(line);
+      const m = /^\[\s*plugins\s*\.\s*(?:"([^"]+)"|'([^']+)')\s*\]$/.exec(line);
       current = m ? (m[1] ?? m[2]) : null;
       if (current) out.set(current, true);
       continue;
     }
-    const kv = current && /^enabled\s*=\s*(true|false)$/.exec(line);
-    if (kv && current) out.set(current, kv[1] === "true");
+    const kv = /^enabled\s*=\s*([^#]*)/.exec(line);
+    if (current && kv) out.set(current, kv[1].trimEnd() === "true");
   }
   return out;
 }
@@ -147,11 +147,11 @@ export async function resolveClaudePlugins(claudeDir: string, cwd: string): Prom
   let skipped = 0;
   const here = path.resolve(cwd);
   for (const [id, value] of Object.entries(installed.plugins)) {
-    const records = (Array.isArray(value) ? value : [value]).filter(
-      (r) => r && typeof r.installPath === "string" &&
-        // project/local installs apply inside that project and its subdirectories
-        (!r.projectPath || (r.scope !== "project" && r.scope !== "local") || isWithin(here, path.resolve(r.projectPath))),
-    );
+    const records = (Array.isArray(value) ? value : [value]).filter((r) => {
+      if (!r || typeof r.installPath !== "string") return false;
+      if (r.scope !== "project" && r.scope !== "local") return true;
+      return typeof r.projectPath === "string" && r.projectPath !== "" && isWithin(here, path.resolve(r.projectPath));
+    });
     if (records.length === 0) continue;
     if (enabled.get(id) === false) {
       skipped++;
